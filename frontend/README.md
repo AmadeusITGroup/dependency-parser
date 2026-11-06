@@ -1,8 +1,8 @@
 # Frontend
 
-The frontend uses Angular 22.2.4 with Angular CLI and the `@angular/build` application builder on 22.2.5. TypeScript remains on the Angular-compatible 6.0 line. See the [development prerequisites](../CONTRIBUTING.md#prerequisites) for supported Node.js versions and [dependency maintenance](../CONTRIBUTING.md#maintaining-dependencies) for security overrides and install-script policy.
+The frontend uses Angular 22.2.4 with Angular CLI and the `@angular/build` application builder on 22.2.5. TypeScript remains on the Angular-compatible 6.0 line. See the [development prerequisites](../RUNNING.md#prerequisites) for supported Node.js versions and [dependency maintenance](../RUNNING.md#maintaining-dependencies) for security overrides and install-script policy.
 
-For a basic workflow with Tree Builder form examples, tree comparisons, root-version searches, and screenshots, see the [usage how-to](../HOWTO.md).
+For a basic workflow with Tree Builder form examples, tree comparisons, root-version searches, and screenshots, see the [Express demo](../DEMO.md).
 
 ## Current screens
 
@@ -40,7 +40,7 @@ Version lists are persisted by the backend independently of browser storage. Bot
 
 Selecting a project makes one version-list request. With backend dependency scans enabled, it reads the stored catalog and automatically refreshes Git tags if that version list is empty; with scans disabled, it refreshes the source. Both version dropdowns include **Refresh versions**, which sends `forceRefresh=true` to explicitly refresh the source (currently Git) and update the shared list. The action also works for an empty catalog, is disabled while a request is running, and preserves valid selections. A failed refresh retains the previous list and reports an error. See the [backend API overview](../backend/README.md#api-overview) for the request policy.
 
-All screens use same-origin `/api` requests. During development, Angular forwards `/api/**` to `http://localhost:3000` through [proxy.conf.json](proxy.conf.json), configured in [angular.json](angular.json). If the backend port changes, update the proxy target rather than application source. The [test container](../CONTRIBUTING.md#build-and-run-in-a-container) serves the frontend and API together on port 3000, without a development proxy. See the [backend README](../backend/README.md) for API setup and configuration, and the [contribution guide](../CONTRIBUTING.md#build-and-run-locally) for dependency installation and running both applications.
+All screens use same-origin `/api` requests. During development, Angular forwards `/api/**` to `http://localhost:3000` through [proxy.conf.json](proxy.conf.json), configured in [angular.json](angular.json). If the backend port changes, update the proxy target rather than application source. The [test container](../RUNNING.md#build-and-run-in-a-container) serves the frontend and API together on port 3000, without a development proxy. See the [backend README](../backend/README.md) for API setup and configuration, and the [running guide](../RUNNING.md#build-and-run-locally) for dependency installation and running both applications.
 
 ### Commit changes
 
@@ -94,7 +94,7 @@ npm run build
 
 This will compile your project and store the browser build in `dist/frontend/browser/`. By default, the production build optimizes your application for performance and speed. To serve it with the API rather than Angular's development server, use the backend's [frontend hosting configuration](../backend/README.md#frontend-hosting-and-docker) or the combined Docker image.
 
-Hosting and release pipelines are [operator-managed](../CONTRIBUTING.md#deployment-responsibilities).
+Hosting and release pipelines are [operator-managed](../RUNNING.md#deployment-responsibilities).
 
 Production builds warn when a component stylesheet exceeds 14 kB and fail above 16 kB. These budgets are configured in [angular.json](angular.json).
 
@@ -109,7 +109,7 @@ npm run lint:fix
 
 Warnings fail the check. The fix command applies supported automatic corrections and reports anything that still needs a manual fix.
 
-After provisioning Chromium as described below, `npm run verify` runs lint, a production build, and one non-watching test pass with coverage enforcement. See [repository verification](../CONTRIBUTING.md#verification-and-ci) for checks covering both applications and CI.
+After provisioning Chromium as described below, `npm run verify` runs lint, a production build, and one non-watching test pass with coverage enforcement. See [repository verification](../RUNNING.md#verification-and-ci) for checks covering both applications and CI.
 
 ## Running unit tests
 
@@ -133,7 +133,7 @@ Tests cover navigation, Dependency Tree, commit changelogs (compact action styli
 
 ### Test Coverage
 
-Collect coverage and enforce the shared [coverage policy](../CONTRIBUTING.md#coverage-policy):
+Collect coverage and enforce the shared [coverage policy](../RUNNING.md#coverage-policy):
 
 ```bash
 npm run test:coverage

@@ -2,7 +2,7 @@
 
 The backend is a TypeScript and Express API for defining projects, resolving dependency trees, locating versions, and comparing package versions across releases.
 
-See the [contribution guide](../CONTRIBUTING.md#build-and-run-locally) for prerequisites, dependency installation, and running both applications. Complete the [environment setup](#environment-setup) before starting the API. Run the commands below from `backend/`; the server loads `.env` and resolves datastore paths relative to the current working directory.
+See the [running guide](../RUNNING.md#build-and-run-locally) for prerequisites, dependency installation, and running both applications. Complete the [environment setup](#environment-setup) before starting the API. Run the commands below from `backend/`; the server loads `.env` and resolves datastore paths relative to the current working directory.
 
 ## Current Capabilities
 
@@ -72,7 +72,7 @@ Run lint, compile the backend, and execute its tests in order:
 npm run verify
 ```
 
-For checks covering both applications and the GitHub Actions workflow, see [repository verification](../CONTRIBUTING.md#verification-and-ci).
+For checks covering both applications and the GitHub Actions workflow, see [repository verification](../RUNNING.md#verification-and-ci).
 
 ## Running Tests
 
@@ -95,7 +95,7 @@ Commit-comparison regressions cover committer timestamps independently of author
 
 ### Test Coverage
 
-Build fresh compiled output, run the ordinary test suite, and enforce the shared [coverage policy](../CONTRIBUTING.md#coverage-policy):
+Build fresh compiled output, run the ordinary test suite, and enforce the shared [coverage policy](../RUNNING.md#coverage-policy):
 
 ```powershell
 npm run test:coverage
@@ -171,7 +171,7 @@ The root launcher starts the backend with `backend/` as its working directory, s
 
 Keep tokens and connection-string credentials backend-only. Local environment files are gitignored, not encrypted; never commit them or copy secrets into frontend configuration.
 
-For containers, pass settings at runtime through `--env` or a dedicated `--env-file`; see [container environment input](../CONTRIBUTING.md#optional-github-token-input). Local environment files are excluded from the image. Do not reuse the backend template unchanged as a container environment file: Docker and Podman do not interpret its inline comments.
+For containers, pass settings at runtime through `--env` or a dedicated `--env-file`; see [container environment input](../RUNNING.md#optional-github-token-input). Local environment files are excluded from the image. Do not reuse the backend template unchanged as a container environment file: Docker and Podman do not interpret its inline comments.
 
 ### Shell Overrides
 
@@ -215,13 +215,13 @@ Defaults below apply when neither the process environment nor the local file sup
 
 Set `FRONTEND_DIST` to an absolute path or a path relative to the backend working directory to serve a compiled Angular browser build alongside `/api`. Startup fails if its `index.html` is missing or is not a file. Static assets are served directly, and HTML navigation routes fall back to that index, including project IDs containing dots. Missing API routes and non-HTML requests for missing asset files retain `404` responses. With this setting unset or blank, the backend remains API-only.
 
-The [container guide](../CONTRIBUTING.md#build-and-run-in-a-container) covers building and running the combined image with Docker or Podman, including [loading CI image artifacts](../CONTRIBUTING.md#loading-a-ci-image).
+The [container guide](../RUNNING.md#build-and-run-in-a-container) covers building and running the combined image with Docker or Podman, including [loading CI image artifacts](../RUNNING.md#loading-a-ci-image).
 
 All build and runtime stages use `node:24-trixie-slim` (Node.js 24 on Debian Trixie). The runtime installs Git 2.45+ from Debian's repositories for [selective tag discovery](#tag-history-and-snapshots), CA certificates, and SSH client tools. It runs the compiled backend and serves the production Angular build as the non-root `node` user (UID 1000), with working directory `/app/backend`, `DATASTORE=json`, and `FRONTEND_DIST=/app/frontend`. The frontend and API share port 3000.
 
 Mount `/app/backend/data` to retain project definitions, tag catalogs, dependency snapshots, and the default clone cache. A new volume starts empty. Existing bind-mounted directories must be writable by UID 1000. Local datastore files, clones, environment files, and npm credentials are excluded by the allowlisted [build context](../.dockerignore); no development data or credentials are bundled.
 
-Pass backend settings and repository credentials at runtime using `--env` or a dedicated environment file, never build arguments or image contents. MongoDB remains optional through the existing runtime settings; a MongoDB server is not included. The image health check verifies `/api/health`, not external Git or MongoDB availability. This is local test packaging; operators must address [deployment responsibilities](../CONTRIBUTING.md#deployment-responsibilities) and the [shared/production deployment gaps](../docs/HLD.md#104-gaps-to-close-before-a-shared-or-production-deployment).
+Pass backend settings and repository credentials at runtime using `--env` or a dedicated environment file, never build arguments or image contents. MongoDB remains optional through the existing runtime settings; a MongoDB server is not included. The image health check verifies `/api/health`, not external Git or MongoDB availability. This is local test packaging; operators must address [deployment responsibilities](../RUNNING.md#deployment-responsibilities) and the [shared/production deployment gaps](../docs/HLD.md#104-gaps-to-close-before-a-shared-or-production-deployment).
 
 ### GitHub Token Authentication
 
@@ -239,7 +239,7 @@ The adapter supplies a URL-scoped Basic Authorization header through temporary G
 
 Unset or blank `GITHUB_TOKEN` leaves existing Git authentication unchanged. Surrounding whitespace is trimmed; embedded whitespace or control characters fail startup without printing the value. SSH, HTTP, GitHub Enterprise Server, and non-GitHub remotes continue using the host's existing Git authentication. Expired, revoked, or insufficiently scoped tokens must be replaced and the backend restarted; automatic token refresh is not provided.
 
-This is one shared backend credential, not user sign-in or API authorization. All application users still share the backend's repository access; do not expose the API as though this setting protects it. Operators must add end-user authentication and authorization in their own extension or fork before exposing the application to untrusted users; see [deployment responsibilities](../CONTRIBUTING.md#deployment-responsibilities).
+This is one shared backend credential, not user sign-in or API authorization. All application users still share the backend's repository access; do not expose the API as though this setting protects it. Operators must add end-user authentication and authorization in their own extension or fork before exposing the application to untrusted users; see [deployment responsibilities](../RUNNING.md#deployment-responsibilities).
 
 ### JSON
 
@@ -385,7 +385,7 @@ Dependency resolution may need access to the configured repositories and a worki
 
 Tag names are literal: `v5.3.0` and `5.3.0` identify different tags. The backend never adds or removes `v` during version lookup, dependency-ref resolution, minimum-tag validation, commit comparison, or tag-date lookup. This applies to both cached and freshly retrieved data. `latest` still selects the newest active tag.
 
-The project's `tagPattern` filters the original tag name, without normalization; an optional `v?` explicitly accepts both forms but does not make them interchangeable. See the [tag-regex examples](../HOWTO.md#fill-in-the-root-project).
+The project's `tagPattern` filters the original tag name, without normalization; an optional `v?` explicitly accepts both forms but does not make them interchangeable. See the [tag-regex examples](../DEMO.md#fill-in-the-root-project).
 
 A parent manifest declaring `5.3.0` therefore cannot resolve against a dependency tag named only `v5.3.0`, or vice versa. A missing exact dependency ref follows the existing bounded-retry and unresolved-inspection policy rather than substituting another tag.
 

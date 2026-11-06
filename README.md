@@ -20,23 +20,27 @@ Dependency Parser helps teams trace how their projects depend on one another acr
 
 The application combines an Angular frontend with a TypeScript/Express backend that inspects the configured projects' Git repositories.
 
-## How To Use
+## Try The Demo
 
-Follow the [usage how-to](HOWTO.md) for a step-by-step walkthrough: define a project tree, browse and compare releases, inspect commit changes, and find the parent release containing a dependency update.
+Follow the [Express demo](DEMO.md) for a step-by-step walkthrough: define a project tree, browse and compare releases, inspect commit changes, and find the parent release containing a dependency update.
 
-## Contribute, Develop, Or Run
+## Run
 
-Dependency Parser is an open-source, self-hosted tool. We provide basic build, run, and container tooling; operators own their environment, deployment pipeline, and persistence. See [deployment responsibilities](CONTRIBUTING.md#deployment-responsibilities).
+Dependency Parser is an open-source, self-hosted tool. We provide basic build, run, and container tooling; operators own their environment, deployment pipeline, and persistence. See [deployment responsibilities](RUNNING.md#deployment-responsibilities).
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for GitHub contribution rules, the issue template, local Node.js setup, Docker and Podman commands, token input, verification, and versioned CI image artifacts.
+See the [running guide](RUNNING.md) for local Node.js setup, Docker and Podman commands, token input, verification, and versioned CI image artifacts.
 
 For environment variables, follow the centralized [backend environment setup](backend/README.md#environment-setup), including local file creation, shell overrides, credentials, and the complete variable reference.
 
-Local verification and CI enforce independent backend and frontend [test coverage minimums](CONTRIBUTING.md#coverage-policy), with downloadable coverage reports in CI.
+## Contribute
+
+See the [contribution guide](CONTRIBUTING.md) for the issue-first workflow, issue template, fork and pull request instructions, and review expectations.
+
+Local verification and CI enforce independent backend and frontend [test coverage minimums](RUNNING.md#coverage-policy), with downloadable coverage reports in CI.
 
 See [GOVERNANCE.md](GOVERNANCE.md) for project decisions, commit access, merge requirements, and release management. The current project maintainers are listed in [MAINTAINERS.md](MAINTAINERS.md).
 
-Development targets the `main` branch. CI build tags use the `main.` prefix and identify tested snapshots; human maintainers choose official Semantic Versioning release tags. See the [build-tag conventions](CONTRIBUTING.md#versioned-git-tags-and-image-artifacts) and [release policy](GOVERNANCE.md#release-management).
+Development targets the `main` branch. CI build tags use the `main.` prefix and identify tested snapshots; human maintainers choose official Semantic Versioning release tags. See the [build-tag conventions](RUNNING.md#versioned-git-tags-and-image-artifacts) and [release policy](GOVERNANCE.md#release-management).
 
 For security vulnerabilities, follow the private reporting instructions in [SECURITY.md](SECURITY.md); do not open a public issue or pull request.
 
