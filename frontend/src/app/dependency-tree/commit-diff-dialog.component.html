@@ -1,0 +1,57 @@
+<dialog #dialog class="commit-diff" aria-labelledby="commit-diff-title"
+  aria-describedby="commit-diff-versions" (cancel)="onCancel($event)"
+  (pointerdown)="onDialogPointerDown($event)" (click)="onDialogClick($event)">
+  <header class="commit-diff__header">
+    <div>
+      <h2 id="commit-diff-title">Changes in {{ comparison().name }}</h2>
+      <p id="commit-diff-versions" class="commit-diff__versions">
+        Baseline: <strong>{{ comparison().fromVersion }}</strong>
+        <span aria-hidden="true"> / </span>
+        Comparison: <strong>{{ comparison().toVersion }}</strong>
+      </p>
+    </div>
+    <button type="button" class="commit-diff__button commit-diff__button--close" autofocus aria-label="Close commit changes"
+      (click)="close()">Close</button>
+  </header>
+
+  <div class="commit-diff__body" [class.commit-diff__body--loading]="status() === 'loading'"
+    [attr.aria-busy]="status() === 'loading'">
+    @if (status() === 'loading') {
+      <p class="commit-diff__status commit-diff__loading" role="status">
+        <span class="commit-diff__spinner" aria-hidden="true"></span>
+        <span>Loading commit changes...</span>
+      </p>
+    } @else if (status() === 'error') {
+      <p class="commit-diff__status" role="alert">{{ error() }}</p>
+      <button type="button" class="commit-diff__button commit-diff__retry" (click)="retry()">Retry</button>
+    } @else if (areas().length === 0) {
+      <p class="commit-diff__status" role="status">These tags have no commit differences.</p>
+    } @else {
+      <div class="commit-diff__areas" [class.commit-diff__areas--split]="areas().length === 2">
+        @for (area of areas(); track area.side) {
+          <section class="commit-diff__area" [attr.data-side]="area.side"
+            [attr.aria-label]="'Commits only in ' + area.version">
+            <header class="commit-diff__area-header">
+              <h3>Only in {{ area.version }}</h3>
+              <p>Missing from {{ area.missingFrom }}</p>
+              <span class="commit-diff__count">{{ area.commits.length }} commit{{ area.commits.length === 1 ? '' : 's' }}</span>
+            </header>
+            <ul class="commit-diff__list">
+              @for (commit of area.commits; track commit.hash) {
+                <li>
+                  <a class="commit-diff__commit" [href]="commit.url" target="_blank" rel="noopener noreferrer">
+                    <code>{{ commit.hash }}</code>
+                    <span>{{ commit.subject }}</span>
+                    <time [attr.datetime]="commit.committedAt" [title]="commit.committedAt">
+                      Committed {{ commit.committedAt | date:'medium' }}
+                    </time>
+                  </a>
+                </li>
+              }
+            </ul>
+          </section>
+        }
+      </div>
+    }
+  </div>
+</dialog>

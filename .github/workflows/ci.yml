@@ -1,0 +1,301 @@
+name: CI
+run-name: ${{ github.event_name == 'pull_request' && format('CI PR {0}', github.event.pull_request.number) || format('CI {0}', github.ref_name) }}
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    name: Lint, build, test, and check coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: "true"
+      NPM_CONFIG_REGISTRY: https://registry.npmjs.org
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm --prefix backend ci
+          npm --prefix frontend ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test CI versioning
+        run: npm run test:ci-workflow
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Chromium
+        working-directory: frontend
+        run: npm exec -- playwright install --with-deps chromium
+
+      - name: Test backend with coverage
+        id: backend_coverage
+        run: npm --prefix backend run test:coverage
+
+      - name: Test frontend with coverage
+        if: ${{ !cancelled() && steps.backend_coverage.outcome != 'skipped' }}
+        run: npm --prefix frontend run test:coverage
+
+      - name: Explain local artifact upload skip
+        if: ${{ !cancelled() && steps.backend_coverage.outcome != 'skipped' && env.ACT == 'true' }}
+        run: echo "::notice::Skipping coverage artifact upload in local act runs; tests and coverage thresholds are still enforced."
+
+      - name: Upload coverage reports
+        if: ${{ !cancelled() && steps.backend_coverage.outcome != 'skipped' && env.ACT != 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: coverage-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            backend/coverage/
+            frontend/coverage/
+            !backend/coverage/tmp/**
+          if-no-files-found: error
+          retention-days: 14
+
+  image:
+    name: Build and smoke-test Docker image
+    needs: verify
+    if: github.event_name == 'pull_request' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      revision: ${{ steps.version.outputs.revision }}
+    env:
+      IMAGE_NAME: dependency-parser
+      CONTAINER_NAME: dependency-parser-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+      VOLUME_NAME: dependency-parser-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Check out tested revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Determine image and Git tag
+        id: version
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { determineVersion } = require("./.github/scripts/ci-version.cjs");
+            const { version, revision } = await determineVersion({
+              github, context, runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+            });
+            core.setOutput("version", version);
+            core.setOutput("revision", revision);
+            core.info(`Building ${version} from ${revision}.`);
+
+      - name: Build image
+        env:
+          IMAGE_VERSION: ${{ steps.version.outputs.version }}
+          IMAGE_REVISION: ${{ steps.version.outputs.revision }}
+        run: |
+          docker build \
+            --label "org.opencontainers.image.version=$IMAGE_VERSION" \
+            --label "org.opencontainers.image.revision=$IMAGE_REVISION" \
+            --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --tag "$IMAGE_NAME:$IMAGE_VERSION" \
+            --tag "$IMAGE_NAME:sha-$IMAGE_REVISION" \
+            .
+
+      - name: Check image startup, frontend, API, and JSON persistence
+        env:
+          IMAGE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          image="$IMAGE_NAME:$IMAGE_VERSION"
+          base_url="http://127.0.0.1:3000"
+          test "$(docker image inspect --format '{{.Config.User}}' "$image")" = "node"
+          git_version=$(docker run --rm --entrypoint git "$image" --version)
+          echo "$git_version"
+          if [[ ! "$git_version" =~ ^git\ version\ ([0-9]+)\.([0-9]+) ]] ||
+             (( BASH_REMATCH[1] < 2 || (BASH_REMATCH[1] == 2 && BASH_REMATCH[2] < 45) )); then
+            echo "::error::The image must provide Git 2.45+ for selective tag discovery."
+            exit 1
+          fi
+          docker volume create "$VOLUME_NAME"
+
+          start_container() {
+            docker run --detach --name "$CONTAINER_NAME" \
+              --publish 127.0.0.1:3000:3000 \
+              --mount "type=volume,source=$VOLUME_NAME,target=/app/backend/data" \
+              --env DEPENDENCY_SCAN_ENABLED=false \
+              "$image"
+            curl --fail --silent --show-error --max-time 5 \
+              --retry 30 --retry-connrefused --retry-delay 2 --retry-max-time 60 \
+              "$base_url/api/health" | jq --exit-status '. == {"status":"ok"}'
+          }
+
+          start_container
+          curl --fail --silent --show-error "$base_url/" > "$RUNNER_TEMP/frontend.html"
+          grep --quiet '<app-root' "$RUNNER_TEMP/frontend.html"
+          for route in tree builder find-root-version; do
+            curl --fail --silent --show-error "$base_url/$route" > "$RUNNER_TEMP/frontend-route.html"
+            cmp "$RUNNER_TEMP/frontend.html" "$RUNNER_TEMP/frontend-route.html"
+          done
+          for route in api/not-found missing.js; do
+            status=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base_url/$route")
+            if [ "$status" != "404" ]; then
+              echo "::error::Expected 404 for /$route, received $status."
+              exit 1
+            fi
+          done
+          project_id=$(curl --fail-with-body --silent --show-error \
+            --json '{"name":"Container smoke","repoUrl":"https://example.invalid/container-smoke.git","dependencies":[]}' \
+            "$base_url/api/projects" | jq --exit-status --raw-output '.id | select(type == "string" and length > 0)')
+          docker stop --time 10 "$CONTAINER_NAME"
+          docker rm "$CONTAINER_NAME"
+          start_container
+          curl --fail --silent --show-error "$base_url/api/projects/$project_id" \
+            | jq --exit-status --arg id "$project_id" '.id == $id and .name == "Container smoke"'
+
+      - name: Clean up smoke-test resources
+        if: always()
+        run: |
+          if docker container inspect "$CONTAINER_NAME" > /dev/null 2>&1; then
+            docker logs "$CONTAINER_NAME"
+            docker rm --force "$CONTAINER_NAME"
+          fi
+          if docker volume inspect "$VOLUME_NAME" > /dev/null 2>&1; then
+            docker volume rm "$VOLUME_NAME"
+          fi
+
+      - name: Export image
+        env:
+          IMAGE_VERSION: ${{ steps.version.outputs.version }}
+          IMAGE_REVISION: ${{ steps.version.outputs.revision }}
+        run: |
+          docker save "$IMAGE_NAME:$IMAGE_VERSION" "$IMAGE_NAME:sha-$IMAGE_REVISION" \
+            | gzip > "dependency-parser-$IMAGE_VERSION.tar.gz"
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: dependency-parser-${{ steps.version.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dependency-parser-${{ steps.version.outputs.version }}.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Summarize image
+        env:
+          IMAGE_VERSION: ${{ steps.version.outputs.version }}
+          IMAGE_REVISION: ${{ steps.version.outputs.revision }}
+        run: |
+          {
+            echo "## Docker image"
+            echo
+            echo "- Version: \`$IMAGE_NAME:$IMAGE_VERSION\`"
+            echo "- Revision: \`$IMAGE_NAME:sha-$IMAGE_REVISION\`"
+            echo "- Download the image artifact, extract the archive, and load it with \`docker load --input dependency-parser-$IMAGE_VERSION.tar.gz\`."
+            echo "- No registry publishing or deployment was performed."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Explain fork PR tag restriction
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+        run: echo "::notice::Fork PRs receive image artifacts, but their read-only token cannot create Git tags."
+
+  tag:
+    name: Create matching Git tag
+    needs: image
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      # Keep checked-out project code out of this write-enabled job.
+      - name: Create immutable Git tag
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          IMAGE_VERSION: ${{ needs.image.outputs.version }}
+          IMAGE_REVISION: ${{ needs.image.outputs.revision }}
+        with:
+          script: |
+            const version = process.env.IMAGE_VERSION;
+            const revision = process.env.IMAGE_REVISION;
+            const isPullRequest = context.eventName === "pull_request";
+            const match = /^main\.(0|[1-9]\d*)(?:-pr([1-9]\d*)\.([1-9]\d*))?$/.exec(version);
+            if (!match || version.length > 128 || revision !== context.sha) {
+              throw new Error("Image version or revision does not match this workflow run.");
+            }
+            if (isPullRequest) {
+              const number = context.payload.pull_request.number;
+              if (match[2] !== String(number)) {
+                throw new Error("The image version does not match this pull request.");
+              }
+              const { data: pullRequest } = await github.rest.pulls.get({
+                ...context.repo, pull_number: number,
+              });
+              if (pullRequest.state !== "open" || pullRequest.merge_commit_sha !== revision) {
+                core.notice("The PR closed or its tested merge revision changed; leaving Git tags untouched.");
+                return;
+              }
+            } else if (match[2] !== undefined || match[1] === "0" ||
+              context.ref !== `refs/heads/${context.payload.repository.default_branch}`) {
+              throw new Error("Mainline build tags can only be created from the default branch.");
+            }
+
+            const ref = `tags/${version}`;
+            const { data: matches } = await github.rest.git.listMatchingRefs({
+              ...context.repo, ref,
+            });
+            const existing = matches.find(match => match.ref === `refs/${ref}`);
+            if (existing) {
+              let object = existing.object;
+              while (object.type === "tag") {
+                const { data: tag } = await github.rest.git.getTag({
+                  ...context.repo, tag_sha: object.sha,
+                });
+                object = tag.object;
+              }
+              if (object.type !== "commit") {
+                throw new Error(`Existing tag ${version} does not resolve to a commit.`);
+              }
+              if (object.sha === revision) {
+                core.info(`Git tag ${version} already points to ${revision}.`);
+                return;
+              }
+              throw new Error(`Refusing to move immutable build tag ${version}.`);
+            } else {
+              await github.rest.git.createRef({
+                ...context.repo, ref: `refs/${ref}`, sha: revision,
+              });
+            }
+            await core.summary.addHeading("Git tag")
+              .addRaw(`\`${version}\` points to tested revision \`${revision}\`.`)
+              .write();

@@ -1,0 +1,89 @@
+<main class="version-search-shell">
+  <header>
+    <h1>Find Root Version</h1>
+  </header>
+
+  <form class="search-fields" (submit)="$event.preventDefault(); search()">
+    <label for="version-search-project">
+      <span>Root Project</span>
+      <select id="version-search-project" [value]="projectId()"
+        [disabled]="projectsStatus() !== 'ready' || !projects().length"
+        (change)="selectProject($any($event.target).value)">
+        @if (projectsStatus() === 'loading') {
+          <option value="">Loading projects...</option>
+        } @else if (!projects().length) {
+          <option value="">No saved projects</option>
+        }
+        @for (project of projects(); track project.id) {
+          <option [value]="project.id" [selected]="project.id === projectId()">{{ project.name }}</option>
+        }
+      </select>
+    </label>
+    <label for="version-search-dependency">
+      <span>Dependency</span>
+      <select id="version-search-dependency" [value]="dependencyProjectId()"
+        [disabled]="projectsStatus() !== 'ready' || !dependencies().length"
+        (change)="selectDependency($any($event.target).value)">
+        <option value="">{{ dependencies().length ? 'Select dependency' : 'No configured dependencies' }}</option>
+        @for (dependency of dependencies(); track dependency.id) {
+          <option [value]="dependency.id" [selected]="dependency.id === dependencyProjectId()">{{ dependency.name }}</option>
+        }
+      </select>
+    </label>
+    <label for="version-search-minimum">
+      <span>Minimum Dependency Version</span>
+      <input id="version-search-minimum" type="text" autocomplete="off" required
+        [value]="minimumVersion()" (input)="setMinimumVersion($any($event.target).value)" />
+    </label>
+    <button type="submit" [disabled]="!canSearch()">
+      {{ status() === 'loading' ? 'Searching...' : 'Find Root Version' }}
+    </button>
+  </form>
+
+  <section class="search-results" aria-label="Root version search results" [attr.aria-busy]="status() === 'loading'">
+    @let response = result();
+    @if (projectsStatus() === 'error') {
+      <div class="search-message search-message--error" role="alert">
+        <p>{{ projectsError() }}</p>
+        <button type="button" (click)="loadProjects()">Retry</button>
+      </div>
+    } @else if (projectsStatus() === 'loading') {
+      <p class="search-message" role="status">Loading projects...</p>
+    } @else if (!projects().length) {
+      <p class="search-message" role="status">No saved projects.</p>
+    } @else if (status() === 'loading') {
+      <p class="search-message search-loading" role="status">
+        <span class="search-spinner" aria-hidden="true"></span>
+        Checking releases for {{ selectedProject()?.name }}...
+      </p>
+    } @else if (status() === 'error') {
+      <div class="search-message search-message--error" role="alert">
+        <p>{{ searchError() }}</p>
+        <button type="button" (click)="search()" [disabled]="!canSearch()">Retry</button>
+      </div>
+    } @else if (response) {
+      @if (response.match; as match) {
+        <div class="search-result-header" role="status">
+          <div>
+            <p class="result-label">Lowest Root Version</p>
+            <h2>{{ match.dependencyTree.projectName }} <code>{{ match.version }}</code></h2>
+          </div>
+          <p class="release-count">{{ response.checkedVersions }} of {{ response.totalVersions }} releases checked</p>
+        </div>
+        <ol class="dependency-path" aria-label="Matching dependency path">
+          @for (node of match.path; track $index) {
+            <li><span>{{ node.projectName }}</span><code>{{ node.version }}</code></li>
+          }
+        </ol>
+        <app-dependency-tree [providedTree]="match.dependencyTree" [providedRepositoryUrls]="repositoryUrls()" />
+      } @else {
+        <div class="search-message" role="status">
+          <p>No release contains {{ selectedDependency()?.name }} at {{ response.minimumVersion }} or newer.</p>
+          <p class="release-count">{{ response.checkedVersions }} releases checked.</p>
+        </div>
+      }
+    } @else if (!dependencies().length) {
+      <p class="search-message" role="status">No configured dependencies for this project.</p>
+    }
+  </section>
+</main>

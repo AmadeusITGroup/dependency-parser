@@ -1,0 +1,41 @@
+node_modules/
+
+# local tooling and caches
+prompt-registry.local.lock.json
+.npm/
+.eslintcache
+*.tsbuildinfo
+
+# logs and exported CI images
+*.log
+dependency-parser-*.tar.gz
+
+# operating system
+.DS_Store
+Thumbs.db
+
+# env
+.env
+.env.*
+!.env.example
+
+# 
+.vscode/
+
+# aidlc
+.kiro/
+aidlc/
+AGENTS.md
+install-aidlc.ps1
+
+# runtime
+dist/
+coverage/
+.vitest/
+build/
+bin/ 
+data/
+
+**/.tsupgrader/
+
+**/.npmrc

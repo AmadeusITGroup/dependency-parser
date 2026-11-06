@@ -1,0 +1,341 @@
+<main class="builder-shell">
+  <header class="panel builder-header">
+    <div class="builder-header__left">
+      <h1>Tree Builder</h1>
+      <div class="project-picker" aria-label="Saved projects">
+          <div class="project-picker__controls">
+            <div class="project-picker__select-wrap">
+              <svg class="project-picker__repo-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 5a2 2 0 0 1 2-2h4l2 3h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z" />
+              </svg>
+              <select
+                id="saved-project-select"
+                class="project-picker__select"
+                [value]="loadedProjectId ?? ''"
+                [disabled]="projectListStatus() === 'loading' || !savedProjects().length"
+                aria-label="Open saved project"
+                (change)="selectProject($any($event.target))"
+              >
+                @if (projectListStatus() === 'loading') {
+                  <option value="">Loading projects...</option>
+                } @else if (savedProjects().length) {
+                  <option value="" disabled hidden [selected]="loadedProjectId === null">
+                    Select a project
+                  </option>
+                  @for (project of savedProjects(); track project.id) {
+                    <option
+                      [value]="project.id"
+                      [selected]="loadedProjectId === project.id"
+                    >{{ project.name }}</option>
+                  }
+                } @else {
+                  <option value="">No saved projects yet.</option>
+                }
+              </select>
+              <svg class="project-picker__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="m7 9 5 5 5-5" />
+              </svg>
+            </div>
+            <button
+              type="button"
+              class="primary-btn"
+              title="Create a new project"
+              (click)="createRoot()"
+            >
+              <span class="project-picker__plus" aria-hidden="true">+</span>
+              New project
+            </button>
+            <button
+              type="button"
+              class="primary-btn primary-btn--danger"
+              [disabled]="!loadedProjectId || deletingProjectId() !== null"
+              [title]="loadedProjectId ? 'Delete ' + (tree()?.name ?? 'project') : 'Select a saved project to delete'"
+              (click)="deleteSelectedProject()"
+            >
+              <svg class="primary-btn__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 10v6M14 10v6" />
+              </svg>
+              {{ deletingProjectId() ? 'Deleting...' : 'Delete' }}
+            </button>
+          </div>
+          @if (projectListError()) {
+            <span class="project-picker__error" role="alert">{{ projectListError() }}</span>
+          }
+      </div>
+    </div>
+  </header>
+
+  @if (!tree()) {
+    <section class="panel builder-empty">
+      <div class="builder-empty__inner">
+        <svg class="builder-empty__icon" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+          <circle cx="24" cy="24" r="22" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
+          <path d="M24 14v20M14 24h20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <h2>Create project</h2>
+        <p>Start with the root repository, then add every project it depends on.</p>
+        <button type="button" class="primary-btn" (click)="createRoot()">+ Create root project</button>
+      </div>
+    </section>
+  } @else {
+    <section class="panel builder-canvas" aria-label="Project dependency structure builder">
+      <header class="builder-canvas__toolbar">
+        <div class="builder-global-actions">
+          <button type="button" class="control-btn" title="Expand all" (click)="expandAllProjects()">
+            <svg class="control-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M8 3H3v5M3 3l6 6M16 3h5v5M21 3l-6 6M8 21H3v-5M3 21l6-6M16 21h5v-5M21 21l-6-6" />
+            </svg>
+            Expand
+          </button>
+          <button type="button" class="control-btn" title="Collapse all" (click)="collapseAllProjects()">
+            <svg class="control-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M3 3l6 6M9 4v5H4M21 3l-6 6M15 4v5h5M3 21l6-6M4 15h5v5M21 21l-6-6M20 15h-5v5" />
+            </svg>
+            Collapse
+          </button>
+          <button type="button" class="control-btn" title="Export as JSON" (click)="exportJson()">
+            <svg class="control-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
+            </svg>
+            Export
+          </button>
+          <input
+            #importFile
+            type="file"
+            accept=".json,application/json"
+            hidden
+            (change)="importJson(importFile)"
+          />
+          <button
+            type="button"
+            class="control-btn"
+            title="Import from JSON (replaces the current data until you save)"
+            (click)="importFile.click()"
+          >
+            <svg class="control-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 15V3M7 8l5-5 5 5M5 21h14" />
+            </svg>
+            Import
+          </button>
+        </div>
+        <div class="builder-canvas__save">
+          @if (projectSaveStatus() === 'dirty' || projectSaveStatus() === 'error') {
+            <button
+              type="button"
+              class="primary-btn primary-btn--danger"
+              title="Discard unsaved changes"
+              (click)="discardChanges()"
+            >
+              <svg class="primary-btn__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4.9 5A9 9 0 1 1 3 12" />
+                <path d="M3 3v5h5" />
+              </svg>
+              Discard
+            </button>
+          }
+          <button
+            type="button"
+            class="primary-btn"
+            title="Save project"
+            [disabled]="isSavingProject()"
+            (click)="saveProject()"
+          >
+            <svg class="primary-btn__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M5 3h12l4 4v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM7 3v6h10V3M7 21v-8h10v8" />
+            </svg>
+            {{ isSavingProject() ? 'Saving...' : 'Save' }}
+          </button>
+        </div>
+        <div class="builder-canvas__status" aria-live="polite">
+          @if (projectSaveStatus() === 'dirty') {
+            <span class="save-indicator save-indicator--dirty save-indicator--visible">Unsaved changes</span>
+          }
+          @if (projectSaveStatus() === 'saved') {
+            <span class="save-indicator save-indicator--visible">Project saved</span>
+          }
+          @if (projectSaveStatus() === 'error') {
+            <span class="save-indicator save-indicator--error save-indicator--visible" role="alert">
+              {{ projectSaveError() }}
+            </span>
+          }
+        </div>
+      </header>
+      <ng-template
+        #projectRef
+        let-project="project"
+        let-link="link"
+        let-depth="depth"
+        let-isLast="isLast"
+        let-ancestorIsLast="ancestorIsLast"
+      >
+        <div class="tree-branch">
+          <div class="tree-prefix" aria-hidden="true">
+            @for (ancestorLast of ancestorIsLast; track $index) {
+              <span
+                class="b-guide"
+                [class.b-guide--empty]="ancestorLast"
+              ></span>
+            }
+            @if (depth > 0) {
+              <span
+                class="b-connector"
+                [class.b-connector--last]="isLast"
+              ><span class="b-connector__dot"></span></span>
+            }
+          </div>
+
+          <article
+            class="project-card"
+            [class.project-card--root]="depth === 0"
+            [class.project-card--new]="pendingFocusId() === project.id"
+          >
+            <div class="project-card__header">
+              <button
+                type="button"
+                class="b-toggle"
+                [class.b-toggle--leaf]="project.dependencies.length === 0"
+                [disabled]="project.dependencies.length === 0"
+                (click)="toggle(project.id)"
+                [attr.aria-label]="(project.collapsed ? 'Expand ' : 'Collapse ') + project.name"
+              >
+                @if (project.dependencies.length === 0) {
+                  <span>&bull;</span>
+                } @else {
+                  <svg viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    @if (project.collapsed) {
+                      <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5"/>
+                    } @else {
+                      <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5"/>
+                    }
+                  </svg>
+                }
+              </button>
+              <div>
+                <span class="card-kicker">{{ depth === 0 ? 'Root project' : 'Dependency project' }}</span>
+                <strong>{{ project.name || 'Unnamed project' }}</strong>
+              </div>
+              <div class="b-actions">
+                <button
+                  type="button"
+                  class="b-btn b-btn--add"
+                  [title]="'Add a project that ' + project.name + ' depends on'"
+                  (click)="addDependencyProject(project.id)"
+                >
+                  + Add dependency
+                </button>
+                <button
+                  type="button"
+                  class="b-btn b-btn--remove"
+                  (click)="removeProject(project.id)"
+                  [title]="depth === 0 ? 'Clear project structure' : 'Remove dependency and its children'"
+                  [attr.aria-label]="'Remove ' + project.name"
+                ><span aria-hidden="true">&minus;</span> Remove</button>
+              </div>
+            </div>
+
+            @if (link) {
+              <fieldset class="dependency-fields">
+                <legend>Imported by parent</legend>
+                <label>
+                  <span>Manifest path</span>
+                  <input
+                    [value]="link.manifestPath"
+                    (input)="setDependencyField(project.id, 'manifestPath', $any($event.target).value)"
+                    placeholder="e.g. package.json or services/api/pom.xml"
+                  />
+                </label>
+                <label>
+                  <span>Version reference</span>
+                  <div class="reference-control">
+                    <select
+                      [value]="link.versionReferenceType"
+                      (change)="setVersionReferenceType(project.id, $any($event.target).value)"
+                      aria-label="Version reference type"
+                    >
+                      <option value="string">String</option>
+                      <option value="regex">Regex</option>
+                    </select>
+                    <input
+                      [value]="link.versionReference"
+                      (input)="setDependencyField(project.id, 'versionReference', $any($event.target).value)"
+                      [placeholder]="link.versionReferenceType === 'regex' ? '/version:\\s*(\\S+)/i' : 'e.g. workspace:*'"
+                    />
+                  </div>
+                </label>
+              </fieldset>
+            }
+
+            <div class="project-fields">
+              <label>
+                <span>Project name <em>required</em></span>
+                <input
+                  [id]="'project-name-' + project.id"
+                  [value]="project.name"
+                  (input)="setProjectField(project.id, 'name', $any($event.target).value)"
+                  placeholder="e.g. billing-api"
+                  required
+                />
+              </label>
+              <label>
+                <span>Repository URL <em>required</em></span>
+                <input
+                  type="url"
+                  [value]="project.repoUrl"
+                  (input)="setProjectField(project.id, 'repoUrl', $any($event.target).value)"
+                  placeholder="https://github.com/org/repository.git"
+                  required
+                />
+              </label>
+              <label class="description-field">
+                <span>Version tag regex <em>optional</em></span>
+                <input
+                  [value]="project.tagPattern"
+                  (input)="setProjectField(project.id, 'tagPattern', $any($event.target).value)"
+                  placeholder="e.g. ^v\d+\.\d+\.\d+$"
+                />
+              </label>
+              <label class="description-field">
+                <span>Description <em>optional</em></span>
+                <input
+                  [value]="project.description"
+                  (input)="setProjectField(project.id, 'description', $any($event.target).value)"
+                  placeholder="What this project is responsible for"
+                />
+              </label>
+            </div>
+          </article>
+        </div>
+
+        @if (!project.collapsed) {
+          @for (dependency of project.dependencies; track dependency.project.id; let dependencyIsLast = $last) {
+            <ng-container
+              [ngTemplateOutlet]="projectRef"
+              [ngTemplateOutletContext]="{
+                project: dependency.project,
+                link: dependency,
+                depth: depth + 1,
+                isLast: dependencyIsLast,
+                ancestorIsLast: childAncestors(ancestorIsLast, isLast, depth)
+              }"
+            ></ng-container>
+          }
+        }
+      </ng-template>
+
+      <div class="builder-tree-scroll">
+        <div class="builder-tree" role="tree" aria-label="Project dependencies">
+          <ng-container
+            [ngTemplateOutlet]="projectRef"
+            [ngTemplateOutletContext]="{
+              project: tree(),
+              link: null,
+              depth: 0,
+              isLast: true,
+              ancestorIsLast: []
+            }"
+          ></ng-container>
+        </div>
+      </div>
+    </section>
+  }
+</main>

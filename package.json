@@ -1,0 +1,33 @@
+{
+  "name": "dependency-parser",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": "^22.22.3 || ^24.15.0 || >=26.0.0",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "start": "concurrently --names backend,frontend \"npm --prefix backend run dev\" \"npm --prefix frontend run build && npm --prefix frontend start\"",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "lint": "eslint eslint.config.cjs .github/scripts backend/src backend/tests frontend/src frontend/vitest-base.config.mts --max-warnings=0",
+    "lint:fix": "npm run lint -- --fix",
+    "test": "npm --prefix backend test && npm --prefix frontend run test:ci",
+    "test:ci-workflow": "node --test .github/scripts/ci-version.test.cjs",
+    "test:coverage": "npm --prefix backend run test:coverage && npm --prefix frontend run test:coverage",
+    "verify": "npm run lint && npm run test:ci-workflow && npm run build && npm run test:coverage"
+  },
+  "devDependencies": {
+    "@angular-eslint/eslint-plugin": "^22.0.0",
+    "@angular-eslint/eslint-plugin-template": "^22.0.0",
+    "@angular-eslint/template-parser": "^22.0.0",
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^10.0.6",
+    "eslint": "^10.6.0",
+    "globals": "^17.7.0",
+    "typescript-eslint": "^8.62.1"
+  },
+  "overrides": {
+    "minimatch@^10.2.2": "^11.0.4"
+  }
+}

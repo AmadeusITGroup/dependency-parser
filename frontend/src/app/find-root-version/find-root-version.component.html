@@ -1,0 +1,166 @@
+<main class="version-search-shell">
+  <div class="panel version-search-panel">
+    <header>
+      <h1>Find Root Version</h1>
+    </header>
+
+    <form class="search-fields" (submit)="$event.preventDefault(); search()">
+      <label for="version-search-project">
+        <span>Root Project</span>
+        <span class="project-picker__select-wrap">
+          <svg class="project-picker__repo-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 5a2 2 0 0 1 2-2h4l2 3h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z" />
+          </svg>
+          <select id="version-search-project" class="project-picker__select" [value]="projectId()"
+            [disabled]="projectsStatus() !== 'ready' || !projects().length"
+            (change)="selectProject($any($event.target).value)">
+            @if (projectsStatus() === 'loading') {
+              <option value="">Loading projects...</option>
+            } @else if (!projects().length) {
+              <option value="">No saved projects</option>
+            }
+            @for (project of projects(); track project.id) {
+              <option [value]="project.id" [selected]="project.id === projectId()">{{ project.name }}</option>
+            }
+          </select>
+          <svg class="project-picker__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m7 9 5 5 5-5" />
+          </svg>
+        </span>
+      </label>
+      <label for="version-search-dependency">
+        <span>Dependency</span>
+        <span class="project-picker__select-wrap">
+          <svg class="project-picker__repo-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 5a2 2 0 0 1 2-2h4l2 3h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z" />
+          </svg>
+          <select id="version-search-dependency" class="project-picker__select" [value]="dependencyProjectId()"
+            [disabled]="projectsStatus() !== 'ready' || !dependencies().length"
+            (change)="selectDependency($any($event.target).value)">
+            <option value="" disabled hidden [selected]="dependencyProjectId() === ''">
+              {{ dependencies().length ? 'Select dependency' : 'No configured dependencies' }}
+            </option>
+            @for (dependency of dependencies(); track dependency.id) {
+              <option [value]="dependency.id" [selected]="dependency.id === dependencyProjectId()">{{ dependency.name }}</option>
+            }
+          </select>
+          <svg class="project-picker__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m7 9 5 5 5-5" />
+          </svg>
+        </span>
+      </label>
+      <label for="version-search-minimum">
+        <span>Minimum Dependency Version</span>
+        <input id="version-search-minimum" type="text" autocomplete="off" required
+          [value]="minimumVersion()" (input)="setMinimumVersion($any($event.target).value)" />
+      </label>
+      <button type="submit" [disabled]="!canSearch()">
+        {{ status() === 'loading' ? 'Searching...' : 'Find Root Version' }}
+      </button>
+    </form>
+    @if (storageError(); as message) {
+      <p class="search-message search-message--error" role="alert">{{ message }}</p>
+    }
+  </div>
+
+  <section class="panel search-results" aria-label="Root version search results" [attr.aria-busy]="status() === 'loading'">
+    @let response = result();
+    @if (projectsStatus() === 'error') {
+      <div class="search-message search-message--error" role="alert">
+        <p>{{ projectsError() }}</p>
+        <button type="button" (click)="loadProjects()">Retry</button>
+      </div>
+    } @else if (projectsStatus() === 'loading') {
+      <p class="search-message" role="status">Loading projects...</p>
+    } @else if (!projects().length) {
+      <p class="search-message" role="status">No saved projects.</p>
+    } @else if (status() === 'loading') {
+      <p class="search-message search-loading" role="status">
+        <span class="search-spinner" aria-hidden="true"></span>
+        Validating the dependency tag and checking releases for {{ selectedProject()?.name }}...
+      </p>
+    } @else if (status() === 'error') {
+      <div class="search-message search-message--error" role="alert">
+        <p>{{ searchError() }}</p>
+        <button type="button" (click)="search()" [disabled]="!canSearch()">Retry</button>
+      </div>
+    } @else if (response) {
+      @if (response.warnings.length) {
+        <div role="status">
+          <button class="warnings-button" type="button" aria-haspopup="dialog"
+            aria-controls="root-version-warnings" (click)="warningsDialog.showModal()">
+            <span class="warning-icon" aria-hidden="true">!</span>
+            Warnings ({{ response.warnings.length }} {{ response.warnings.length === 1 ? 'tag' : 'tags' }}) - View details
+          </button>
+        </div>
+        <dialog #warningsDialog id="root-version-warnings" class="warnings-dialog"
+          aria-labelledby="warnings-title" aria-describedby="warnings-description">
+          <header class="warnings-header">
+            <h2 id="warnings-title">Resolution warnings</h2>
+            <form method="dialog">
+              <button type="submit" autofocus>Close</button>
+            </form>
+          </header>
+          <p id="warnings-description">
+            Warnings are grouped by inspected root tag. Available dependency versions can still produce a search result.
+          </p>
+          <ol class="tag-warnings">
+            @for (warning of response.warnings; track warning.version) {
+              <li class="tag-warning">
+                <h3>{{ selectedProject()?.name }} <code>{{ warning.version }}</code></h3>
+                <p>{{ warning.message }}</p>
+                @if (warning.dependencies.length) {
+                  <ul class="dependency-warnings">
+                    @for (dependency of warning.dependencies; track $index) {
+                      <li>
+                        <div class="warning-dependency-heading">
+                          <strong>{{ dependency.projectName }}</strong>
+                          <code>{{ dependency.version }}</code>
+                        </div>
+                        <p>
+                          @if (dependency.reason === 'unretrievable_version') {
+                            Declared version preserved. This dependency could not be inspected; any configured descendants are unknown.
+                          } @else {
+                            The version could not be determined from the parent manifest or an unavailable ancestor.
+                          }
+                        </p>
+                      </li>
+                    }
+                  </ul>
+                }
+              </li>
+            }
+          </ol>
+        </dialog>
+      }
+      @if (response.match; as match) {
+        <div class="search-result-header" role="status">
+          <div class="search-result-title">
+            <h2>{{ match.dependencyTree.projectName }} <code>{{ match.version }}</code></h2>
+            @if (match.dependencyTree.tree.creationDate; as creationDate) {
+              <time class="search-result-date" [attr.datetime]="creationDate" [title]="'Version created ' + creationDate">
+                {{ creationDate | date:'mediumDate':'UTC' }}, {{ creationDate | date:'HH:mm:ss':'UTC' }} GMT
+              </time>
+            }
+          </div>
+          <p class="release-count">{{ response.checkedVersions }} of {{ response.totalVersions }} releases checked</p>
+        </div>
+        <ol class="dependency-path" aria-label="Matching dependency path">
+          @for (node of match.path; track $index) {
+            <li><span>{{ node.projectName }}</span><code>{{ node.version }}</code></li>
+          }
+        </ol>
+      } @else {
+        <div class="search-message" role="status">
+          <p>No matching latest release run found for {{ selectedDependency()?.name }} at {{ response.minimumVersion }} or newer.</p>
+          <p class="release-count">{{ response.checkedVersions }} {{ response.checkedVersions === 1 ? 'release' : 'releases' }} checked.</p>
+        </div>
+      }
+    } @else if (!dependencies().length) {
+      <p class="search-message" role="status">No configured dependencies for this project.</p>
+    }
+  </section>
+  @if (projectsStatus() === 'ready' && status() === 'ready' && result()?.match; as match) {
+    <app-dependency-tree [providedTree]="match.dependencyTree" [providedRepositoryUrls]="repositoryUrls()" />
+  }
+</main>

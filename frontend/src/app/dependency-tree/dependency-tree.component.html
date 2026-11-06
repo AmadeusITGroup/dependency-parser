@@ -1,0 +1,364 @@
+<div class="tree-shell" [class.tree-shell--embedded]="providedTree()" [attr.role]="providedTree() ? null : 'main'">
+
+  @if (!providedTree()) {
+  <header class="panel tree-header">
+    <div class="tree-header__left">
+      <h1>Dependency Tree</h1>
+      <div class="project-picker tree-pickers" aria-label="Project and version">
+        <label class="tree-picker-field" for="dependency-tree-project-select">
+          <span class="tree-picker-label">Project</span>
+        <div class="project-picker__select-wrap">
+          <svg class="project-picker__repo-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 5a2 2 0 0 1 2-2h4l2 3h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z" />
+          </svg>
+          <select
+            id="dependency-tree-project-select"
+            class="project-picker__select"
+            [value]="projectId()"
+            [disabled]="projectListStatus() === 'loading' || !projectTrees().length"
+            aria-label="Select project"
+            (change)="selectProject($any($event.target))"
+          >
+            @if (projectListStatus() === 'loading') {
+              <option value="">Loading projects...</option>
+            } @else if (projectTrees().length) {
+              @for (tree of projectTrees(); track tree.projectId) {
+                <option [value]="tree.projectId" [selected]="tree.projectId === projectId()">{{ tree.projectName }}</option>
+              }
+            } @else {
+              <option value="">No saved projects yet.</option>
+            }
+          </select>
+          <svg class="project-picker__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m7 9 5 5 5-5" />
+          </svg>
+        </div>
+        </label>
+
+        <div class="tree-version-pickers" aria-label="Versions to compare">
+        <div class="tree-picker-field">
+          <label class="tree-picker-label" for="dependency-tree-version-input">Version</label>
+          <ng-container [ngTemplateOutlet]="versionPicker" [ngTemplateOutletContext]="{ column: 'baseline' }" />
+        </div>
+        @if (comparisonEnabled()) {
+          <div class="tree-picker-field tree-picker-field--comparison">
+            <label class="tree-picker-label" for="dependency-tree-compare-input">Compare with</label>
+            <div class="comparison-picker">
+              <ng-container [ngTemplateOutlet]="versionPicker" [ngTemplateOutletContext]="{ column: 'comparison' }" />
+              <button type="button" class="comparison-remove" title="Remove comparison"
+                aria-label="Remove comparison" (click)="removeComparison()">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        } @else {
+          <button type="button" class="compare-btn" (click)="addComparison()"
+            [disabled]="!selectedVersion() || !currentTree() || !comparisonVersions().length">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+            Compare
+          </button>
+        }
+        </div>
+        @if (projectListError()) {
+          <span class="project-picker__error" role="alert">{{ projectListError() }}</span>
+        }
+        @if (versionError()) {
+          <span class="project-picker__error" role="alert">{{ versionError() }}</span>
+        }
+      </div>
+    </div>
+  </header>
+  }
+
+  <!-- Tree panel -->
+  <section class="panel tree-panel" aria-label="Dependency tree" [attr.aria-busy]="dependencyTreeStatus() === 'loading' || comparisonStatus() === 'loading'">
+  <div class="tree-controls">
+    <div class="tree-search-wrap">
+      <svg class="tree-search-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.5"/>
+        <path d="m13 13 3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <input
+        type="search"
+        class="tree-search"
+        placeholder="Filter packages…"
+        [value]="filter()"
+        [disabled]="!currentTree()"
+        (input)="setFilter($event)"
+        aria-label="Filter dependencies"
+      />
+      @if (matchCount() !== null) {
+        <span class="tree-search-count">{{ matchCount() }} match{{ matchCount() === 1 ? '' : 'es' }}</span>
+      }
+    </div>
+    <div class="tree-actions">
+      <button type="button" class="control-btn" title="Expand all" [disabled]="!currentTree()" (click)="expandAll()">
+        <svg class="control-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M8 3H3v5M3 3l6 6M16 3h5v5M21 3l-6 6M8 21H3v-5M3 21l6-6M16 21h5v-5M21 21l-6-6" />
+        </svg>
+        Expand
+      </button>
+      <button type="button" class="control-btn" title="Collapse all" [disabled]="!currentTree()" (click)="collapseAll()">
+        <svg class="control-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M3 3l6 6M9 4v5H4M21 3l-6 6M15 4v5h5M3 21l6-6M4 15h5v5M21 21l-6-6M20 15h-5v5" />
+        </svg>
+        Collapse
+      </button>
+    </div>
+  </div>
+
+    @if (comparisonStatus() === 'loading') {
+      <p class="comparison-status tree-empty tree-loading" role="status">
+        <span class="tree-resolution-spinner" aria-hidden="true"></span>
+        <span class="tree-loading__text">Resolving version {{ comparisonVersion() }}.</span>
+      </p>
+    } @else if (comparisonStatus() === 'error') {
+      <div class="comparison-status" role="alert">
+        <p>{{ comparisonError() }}</p>
+        <button type="button" class="control-btn" (click)="retryComparison()">Retry comparison</button>
+      </div>
+    }
+    @if (projectListStatus() === 'loading') {
+      <p class="tree-empty">Loading saved project structures...</p>
+    } @else if (projectListStatus() === 'error') {
+      <p class="tree-empty" role="alert">{{ projectListError() }}</p>
+    } @else if (dependencyTreeStatus() === 'loading') {
+      <p class="tree-empty tree-loading" role="status">
+        <span class="tree-resolution-spinner" aria-hidden="true"></span>
+        <span class="tree-loading__text">Resolving version {{ selectedVersion() }}.</span>
+      </p>
+    } @else if (dependencyTreeStatus() === 'error') {
+      <div class="tree-empty" role="alert">
+        <p>{{ dependencyTreeError() }}</p>
+        <button type="button" class="control-btn" (click)="retryResolution()">Retry</button>
+      </div>
+    } @else if (visibleNodes().length === 0) {
+      <p class="tree-empty">No dependencies found.</p>
+    } @else {
+      <div class="tree-scroll" [class.tree-scroll--comparing]="comparing()" (scroll)="positionTagDetails()">
+      @if (comparing()) {
+        <div class="tree-column-headings">
+          <span class="tree-column-headings__name">Dependency</span>
+          <span>{{ selectedVersion() }}</span>
+          <span>{{ comparisonVersion() }}</span>
+          <span class="tree-change-indicator" aria-hidden="true"></span>
+        </div>
+      }
+      <ul class="tree-list" [class.tree-list--comparing]="comparing()" role="tree">
+        @for (node of visibleNodes(); track node.id) {
+          <li
+            class="tree-row"
+            role="treeitem"
+            [style.--tree-depth]="node.depth"
+            [attr.aria-expanded]="node.hasChildren ? node.expanded : null"
+            [attr.aria-level]="node.depth + 1"
+            [class.tree-row--match]="node.matchesFilter"
+            [class.tree-row--dim]="filter() && !node.matchesFilter"
+            [class.tree-row--changed]="node.change === 'changed'"
+            [class.tree-row--added]="node.change === 'added'"
+            [class.tree-row--removed]="node.change === 'removed'"
+          >
+            <span class="tree-node-cell">
+            <!-- Indent guides: one per ancestor depth level (depth-1 ancestors) -->
+            <span class="tree-indent-wrap" aria-hidden="true">
+              @for (isLast of node.ancestorIsLast; track $index) {
+                <span class="tree-guide" [class.tree-guide--empty]="isLast"></span>
+              }
+              <!-- Connector: ├─ or └─, omitted for root -->
+              @if (node.depth > 0) {
+                <span
+                  class="tree-connector"
+                  [class.tree-connector--last]="node.isLastChild"
+                  [class.tree-connector--leaf]="!node.hasChildren"
+                ></span>
+              }
+            </span>
+
+            <!-- Toggle button or spacer -->
+            <button
+              type="button"
+              class="tree-toggle"
+              [class.tree-toggle--leaf]="!node.hasChildren"
+              [attr.aria-label]="node.expanded ? 'Collapse ' + node.name : 'Expand ' + node.name"
+              (click)="toggleNode(node)"
+            >
+              @if (node.hasChildren) {
+                <svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                  @if (node.expanded) {
+                    <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                  } @else {
+                    <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                  }
+                </svg>
+              }
+            </button>
+
+            <!-- Node info -->
+            @if (repositoryUrls().get(node.projectId); as repoUrl) {
+              <a class="tree-node-name tree-node-link" [class.tree-node-name--root]="node.depth === 0"
+                [href]="repoUrl" target="_blank" rel="noopener noreferrer">{{ node.name }}</a>
+            } @else {
+              <span class="tree-node-name" [class.tree-node-name--root]="node.depth === 0">{{ node.name }}</span>
+            }
+            </span>
+            <ng-container [ngTemplateOutlet]="versionBadge" [ngTemplateOutletContext]="{ node: node, comparison: false, rowIndex: $index }" />
+            @if (comparing()) {
+              <ng-container [ngTemplateOutlet]="versionBadge" [ngTemplateOutletContext]="{ node: node, comparison: true, rowIndex: $index }" />
+              <span class="tree-change-indicator">
+                @if (node.change === 'changed') {
+                  <svg class="tree-change-icon tree-change-icon--changed" viewBox="0 0 24 24" fill="none" role="img" aria-label="Version changed">
+                    <title>Version changed</title>
+                    <path d="m16 4 4 4-12 12H4v-4L16 4ZM14 6l4 4" />
+                  </svg>
+                } @else if (node.change === 'added') {
+                  <svg class="tree-change-icon tree-change-icon--added" viewBox="0 0 24 24" fill="none" role="img" aria-label="Dependency added">
+                    <title>Dependency added</title>
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                } @else if (node.change === 'removed') {
+                  <svg class="tree-change-icon tree-change-icon--removed" viewBox="0 0 24 24" fill="none" role="img" aria-label="Dependency removed">
+                    <title>Dependency removed</title>
+                    <path d="M5 12h14" />
+                  </svg>
+                }
+              </span>
+              @if (node.change === 'changed') {
+                <button type="button" class="control-btn tree-show-changes" title="Show changes" aria-haspopup="dialog"
+                  [attr.aria-label]="'Show changes for ' + node.name + ' between ' + node.version + ' and ' + node.comparisonVersion"
+                  (click)="showChanges(node)">
+                  <svg class="control-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M2 12c2.5-4.5 5.8-7 10-7s7.5 2.5 10 7c-2.5 4.5-5.8 7-10 7S4.5 16.5 2 12Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+              }
+            }
+          </li>
+        }
+      </ul>
+      </div>
+    }
+  </section>
+
+  <p class="tree-copy-feedback" role="status" aria-live="polite">{{ copyFeedback() }}</p>
+
+  @if (changelogTarget(); as target) {
+    <app-commit-diff-dialog [comparison]="target" (closed)="changelogTarget.set(null)" />
+  }
+
+  <ng-template #versionPicker let-column="column">
+    @let picker = column === 'comparison' ? versionPickers.comparison : versionPickers.baseline;
+    @let options = column === 'comparison' ? filteredComparisonVersions() : filteredVersions();
+    @let selected = column === 'comparison' ? comparisonVersion() : selectedVersion();
+    @let listId = column === 'comparison' ? 'dependency-tree-compare-list' : 'dependency-tree-version-list';
+    <div class="project-picker__select-wrap" (focusout)="onVersionPickerFocusOut($event, column)"
+      (keydown.escape)="closeVersionList(column)">
+      <svg class="project-picker__repo-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z" />
+        <circle cx="7.5" cy="7.5" r="1" />
+      </svg>
+      <input #versionPickerInput
+        [id]="column === 'comparison' ? 'dependency-tree-compare-input' : 'dependency-tree-version-input'"
+        class="project-picker__select version-input" type="text" role="combobox" autocomplete="off"
+        aria-autocomplete="list" [attr.aria-controls]="listId" [attr.aria-expanded]="picker.open()"
+        [attr.aria-activedescendant]="picker.open() && options.items[picker.highlight()] ? listId + '-option-' + picker.highlight() : null"
+        [value]="picker.open() ? picker.query() : selected"
+        [placeholder]="column === 'comparison' ? comparisonPlaceholder() : versionPlaceholder()"
+        [disabled]="!projectId() || versionStatus() === 'loading'"
+        (focus)="openVersionList(column)" (click)="openVersionList(column)"
+        (input)="setVersionQuery($any($event.target).value, column)" (keydown)="onVersionKeydown($event, column)" />
+      @if (versionsBusy() || (column === 'comparison' && comparisonStatus() === 'loading')) {
+        <span class="version-spinner" role="status"
+          [attr.aria-label]="column === 'comparison' && comparisonStatus() === 'loading' ? 'Resolving version' : 'Loading versions'"></span>
+      }
+      <svg class="project-picker__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m7 9 5 5 5-5" />
+      </svg>
+      @if (picker.open()) {
+        <div class="version-dropdown" (pointerdown)="$event.preventDefault()">
+          <div class="version-dropdown__toolbar">
+            <span>Versions</span>
+            <button type="button" class="version-refresh" title="Refresh versions" aria-label="Refresh versions"
+              [disabled]="versionsBusy()" [attr.aria-busy]="versionStatus() === 'refreshing'"
+              (click)="refreshVersions(column)">
+              <svg class="version-refresh__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 12a8 8 0 1 0-2.34 5.66" />
+                <path d="m17 9 3 3 3-3" />
+              </svg>
+              {{ versionStatus() === 'refreshing' ? 'Refreshing...' : 'Refresh versions' }}
+            </button>
+          </div>
+        <ul class="version-list" [id]="listId" role="listbox">
+          @for (item of options.items; track item.version.version; let index = $index) {
+            <li class="version-option" role="option" [id]="listId + '-option-' + index"
+              [class.version-option--active]="index === picker.highlight()"
+              [class.version-option--selected]="item.version.version === selected"
+              [class.version-option--disabled]="!canSelectVersion(item.version)"
+              [attr.aria-disabled]="!canSelectVersion(item.version)"
+              [attr.aria-selected]="item.version.version === selected"
+              (mouseenter)="picker.highlight.set(index)"
+              (pointerdown)="$event.preventDefault(); column === 'comparison' ? chooseComparisonVersion(item.version.version) : chooseVersion(item.version.version)">
+              <span class="version-option__name">{{ item.version.version }}{{ item.version.removed ? ' (removed)' : '' }}{{ item.isLatest ? ' (latest)' : '' }}</span>
+              <span class="version-option__date">{{ canSelectVersion(item.version) ? formatVersionDate(item.version.creationDate) : 'No saved tree' }}</span>
+            </li>
+          } @empty {
+            <li class="version-list__empty">No matching versions.</li>
+          }
+          @if (options.total > options.items.length) {
+            <li class="version-list__empty">Showing {{ options.items.length }} of {{ options.total }}. Type to narrow down.</li>
+          }
+        </ul>
+        </div>
+      }
+    </div>
+  </ng-template>
+
+  <ng-template #versionBadge let-node="node" let-comparison="comparison" let-rowIndex="rowIndex">
+    @let version = comparison ? node.comparisonVersion : node.version;
+    @let creationDate = comparison ? node.comparisonCreationDate : node.creationDate;
+    @let column = comparison ? 'comparison' : 'baseline';
+    @let detailsId = tagDetailsPrefix + '-' + rowIndex + '-' + column;
+    @let copied = copiedNodeId() === node.id && copiedColumn() === column;
+    <span class="tree-version-column">
+    <span class="tree-node-version" [class.tree-comparison-version]="comparison"
+      [attr.aria-label]="comparison ? node.name + ': ' + node.change + ', ' + (version || 'Not present') : null">
+      <span #tagLabel class="tree-node-version__text" [attr.tabindex]="version ? 0 : null"
+        (pointerenter)="version && showTagDetails(tagLabel, tagPopover)"
+        (pointerleave)="closeTagDetails()"
+        (focus)="version && showTagDetails(tagLabel, tagPopover)"
+        (blur)="closeTagDetails()"
+        [attr.aria-describedby]="version ? detailsId : null">{{ version || 'Not present' }}</span>
+      @if (version) {
+        <button type="button" class="tree-copy" [title]="copied ? 'Copied' : 'Copy version'"
+          [attr.aria-label]="'Copy ' + column + ' version ' + version + ' for ' + node.name"
+          (click)="copyVersion(node, column)">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            @if (copied) {
+              <path class="tree-copy__check" d="m5 12 4 4L19 6" />
+            } @else {
+              <rect x="9" y="9" width="12" height="12" rx="2" />
+              <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+            }
+          </svg>
+        </button>
+      }
+    </span>
+    <span #tagPopover class="tree-tag-popover" [id]="detailsId" popover="manual" role="tooltip">
+      @if (version) {
+        <span class="tree-tag-popover__version">{{ version }}</span>
+        @if (creationDate) {
+          <time [attr.datetime]="creationDate" [title]="creationDate">
+            Created {{ creationDate | date:'mediumDate':'UTC' }}, {{ creationDate | date:'HH:mm:ss':'UTC' }} GMT
+          </time>
+        } @else {
+          <span class="tree-tag-popover__date">Date unavailable</span>
+        }
+      }
+    </span>
+    </span>
+  </ng-template>
+
+</div>
