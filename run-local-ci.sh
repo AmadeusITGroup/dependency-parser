@@ -96,6 +96,7 @@ fi
 if [[ "$platform" == windows ]]; then
     export MSYS_NO_PATHCONV=1
 fi
+engine_env=()
 case "$engine" in
     docker)
         # Do not reuse a Podman endpoint inherited from an earlier run.
@@ -105,6 +106,10 @@ case "$engine" in
             exit 1
         fi
         export DOCKER_HOST="$docker_host"
+        container_socket="${docker_host#unix://}"
+        if [[ "$docker_host" != unix://* ]]; then
+            container_socket=/var/run/docker.sock
+        fi
         if ! docker_os="$(docker info --format '{{.OSType}}')"; then
             printf '%s\n' 'Docker is unavailable. Start Docker and check its current context.' >&2
             exit 1
@@ -130,20 +135,20 @@ case "$engine" in
                 fi
             fi
 
-            if ! podman info >/dev/null; then
-                printf '%s\n' 'Podman is unavailable. Check the Podman machine connection.' >&2
-                exit 1
-            fi
+        fi
+        if ! podman_socket="$(podman info --format '{{.Host.RemoteSocket.Path}}')"; then
+            printf '%s\n' 'Podman is unavailable. Check your Podman installation and connection.' >&2
+            exit 1
+        fi
+        container_socket="${podman_socket#unix://}"
+        if [[ "$container_socket" != /* ]]; then
+            printf '%s\n' 'Cannot resolve the Podman API socket path inside the container host.' >&2
+            exit 1
+        fi
+        if [[ "$platform" == windows ]]; then
             export DOCKER_HOST="npipe:////./pipe/$machine"
         else
-            if ! podman_socket="$(podman info --format '{{.Host.RemoteSocket.Path}}')"; then
-                printf '%s\n' 'Podman is unavailable. Check your local Podman installation and permissions.' >&2
-                exit 1
-            fi
-            if [[ "$podman_socket" != /* ]]; then
-                printf '%s\n' 'Cannot resolve the native Podman API socket path.' >&2
-                exit 1
-            fi
+            podman_socket="$container_socket"
             export DOCKER_HOST="unix://$podman_socket"
             if ! podman --remote --url "$DOCKER_HOST" info >/dev/null; then
                 printf 'Cannot connect to the Podman API at %s.\n' "$DOCKER_HOST" >&2
@@ -153,6 +158,8 @@ case "$engine" in
             fi
         fi
         runner_image=localhost/dependency-parser-act-podman:local
+        runner_network=podman
+        engine_env=(--env DOCKER_BUILDKIT=0)
         if ! podman image exists "$runner_image"; then
             printf 'The previously built Podman-compatible runner image is unavailable: %s\n' "$runner_image" >&2
             exit 1
@@ -161,10 +168,55 @@ case "$engine" in
         ;;
 esac
 
-exec "$act_bin" workflow_dispatch \
+if ! branch="$(git symbolic-ref --quiet --short HEAD)" || [[ -z "$branch" ]]; then
+    printf '%s\n' 'Check out a branch before running local CI; detached HEAD is not supported.' >&2
+    exit 1
+fi
+
+local_run_id="local-$(date +%s)-$$"
+network_created=false
+event_file="$(mktemp)"
+cleanup() {
+    local status=$?
+    if ! rm -f -- "$event_file"; then
+        if [[ "$status" == 0 ]]; then status=1; fi
+    fi
+    if [[ "$network_created" == true ]] && ! docker network rm "$runner_network" >/dev/null; then
+        printf 'Could not remove local CI Docker network %s. Remove it once its containers have stopped.\n' "$runner_network" >&2
+        if [[ "$status" == 0 ]]; then status=1; fi
+    fi
+    exit "$status"
+}
+trap cleanup EXIT
+# Simulate a default-branch dispatch without changing hosted workflow conditions.
+branch_json="${branch//\"/\\\"}"
+printf '{"ref":"refs/heads/%s","repository":{"default_branch":"%s"},"local_ci_run_id":"%s"}\n' \
+    "$branch_json" "$branch_json" "$local_run_id" > "$event_file"
+event_path="$event_file"
+if [[ "$platform" == windows ]]; then
+    event_path="$(cygpath -w "$event_file")"
+fi
+
+if [[ "$engine" == docker ]]; then
+    runner_network="dependency-parser-ci-$local_run_id"
+    if ! docker network create --driver bridge "$runner_network" >/dev/null; then
+        printf 'Cannot create local CI Docker network %s.\n' "$runner_network" >&2
+        exit 1
+    fi
+    network_created=true
+fi
+
+printf '%s\n' 'Running verification, image build/smoke/export, and a Git-tag dry run. GitHub uploads and remote tag creation are disabled.'
+
+"$act_bin" workflow_dispatch \
     --workflows .github/workflows/ci.yml \
-    --job verify \
+    --eventpath "$event_path" \
+    --defaultbranch "$branch" \
     --platform "ubuntu-latest=$runner_image" \
-    --container-daemon-socket - \
+    --container-daemon-socket "$container_socket" \
+    --env ACT=true \
+    --env DOCKER_HOST=unix:///var/run/docker.sock \
+    "${engine_env[@]}" \
+    --network "$runner_network" \
     --pull="$pull_image" \
     --rm

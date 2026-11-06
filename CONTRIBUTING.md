@@ -117,15 +117,17 @@ npm run verify
 
 | Command | Description |
 | --- | --- |
-| `npm run lint` | Check CI versioning scripts and tests, backend TypeScript and Node tests, frontend TypeScript, Angular templates and Vitest configuration, and the shared ESLint configuration. Warnings fail the check. |
+| `npm run lint` | Check CI scripts and workflow tests, backend TypeScript and Node tests, frontend TypeScript, Angular templates and Vitest configuration, and the shared ESLint configuration. Warnings fail the check. |
 | `npm run lint:fix` | Apply automatically fixable lint corrections; remaining errors still need manual fixes. |
 | `npm run build` | Compile the backend and create the frontend production build. |
 | `npm test` | Run backend tests and one non-watching frontend test pass; build the backend first. |
-| `npm run test:ci-workflow` | Run focused Node tests for CI build numbering, workflow wiring, permissions, and immutable Git tags; no application build or browser is needed. |
+| `npm run test:ci-workflow` | Run focused Node tests for CI build numbering, workflow wiring, permissions, immutable Git tags, container startup probes, and the local launcher; no application build or browser is needed. |
 | `npm run test:coverage` | Build the backend, run both test suites without watch mode, and enforce coverage minimums. |
 | `npm run verify` | Run lint, CI workflow tests, both production builds, and both application test suites with coverage checks. |
 
 Lint tooling is shared through the root package and [ESLint configuration](eslint.config.cjs). Angular checks focus on correctness without requiring change-detection, dependency-injection, or template-syntax migrations. Component-specific commands are documented in the [backend](backend/README.md#linting-and-verification) and [frontend](frontend/README.md#linting-and-verification) READMEs.
+
+The focused CI workflow tests require `curl`, Git, and Bash. On Windows they locate Bash through the Git for Windows installation. Launcher regressions use mocked Docker, Podman, and act commands, so they do not require a running container engine.
 
 The [GitHub Actions CI workflow](.github/workflows/ci.yml) runs on branch pushes, pull requests, and manual dispatches. It uses Node.js 24 on Ubuntu, caches npm downloads using all three lockfiles, runs `npm ci` for each package, and provisions headless Chromium with its Linux dependencies before testing. It does not require the backend environment file, repository credentials, or a MongoDB service. Opt-in real-MongoDB and live-repository tests remain separate; see the [backend test instructions](backend/README.md#running-tests).
 
@@ -157,9 +159,17 @@ RUN ln -snf ../run /var/run
 EOF
 ```
 
-The relative `/var/run` symlink avoids the Podman archive-extraction incompatibility in the standard runner image. The launcher runs only the workflow's `verify` job, not the downstream image or Git-tag jobs. The application does not need to be running.
+The relative `/var/run` symlink avoids the Podman archive-extraction incompatibility in the standard runner image. The application does not need to be running.
 
-Local act runs intentionally skip only the GitHub coverage artifact upload and print a notice; lint, builds, tests, and coverage thresholds remain enforced. This avoids the missing artifact runtime token and act 0.2.94's incompatibility with `actions/upload-artifact@v7`, even with its artifact server enabled (`unknown field "mime_type"`; [nektos/act#6114](https://github.com/nektos/act/issues/6114)). No artifact server is required, and the launcher does not save downloadable coverage artifacts locally. GitHub-hosted artifact uploads are unchanged.
+The launcher runs all three workflow jobs: verification, image build/smoke-test/export, and Git-tag validation. Check out a branch first; detached HEAD is not supported. It simulates a default-branch manual dispatch on the current branch by setting that branch as the event's `ref` and `repository.default_branch`, and passing it to act's `--defaultbranch` option. This keeps the simulated GitHub context consistent so downstream jobs also run on feature branches, without changing GitHub-hosted branch restrictions.
+
+The selected engine's Unix socket is mounted into the runner as `/var/run/docker.sock`; on Windows this is the socket inside the Docker or Podman Linux VM, not the host named pipe. Only run trusted workflow/project code, because socket access allows it to control the selected engine. For Docker, the launcher creates a per-run user-defined bridge network, because act's network aliases are unsupported on Docker's built-in `bridge` network. It removes that network on exit, including after failed runs, and reports cleanup failures. Podman continues using its `podman` network. Local smoke-test containers share the runner's network namespace rather than publishing host port 3000. Smoke-test containers and volumes receive per-run names and are cleaned up by the workflow.
+
+Podman image builds use its Docker-compatible build API (`DOCKER_BUILDKIT=0`), avoiding a privileged nested BuildKit container. Docker retains its normal builder selection.
+
+Local image versions use the same mainline allocator with locally available Git tags and the checked-out commit SHA. No GitHub token or API access is required. The tag job validates the version, revision, and branch, then prints a dry-run notice without reading or changing remote Git tags. Real PR attempt history, remote tag immutability checks, and GitHub publishing are not integration-tested by this local run; the focused CI workflow tests cover their logic using mocked GitHub APIs.
+
+Local act runs intentionally skip both GitHub artifact uploads and print notices; lint, builds, tests, coverage thresholds, image smoke checks, and compressed image export remain enforced. This avoids the missing artifact runtime token and act 0.2.94's incompatibility with `actions/upload-artifact@v7`, even with its artifact server enabled (`unknown field "mime_type"`; [nektos/act#6114](https://github.com/nektos/act/issues/6114)). No artifact server is required. The built image remains in the selected container engine, but coverage reports and the compressed export are not retained after runner cleanup. GitHub-hosted uploads and Git-tag creation are unchanged.
 
 ### Coverage Policy
 
@@ -189,6 +199,8 @@ Both runners produce HTML, LCOV, and JSON reports in ignored coverage directorie
 CI build tags identify tested snapshots, not official releases. Here, **mainline** means the repository's default branch, `main`. CI build tags use the `main.` prefix.
 
 After verification succeeds, default-branch and PR runs build the [Docker image](Dockerfile), check its non-root configuration and require Git 2.45+, and smoke-test the API, frontend routes, and JSON persistence across container recreation. CI then uploads a compressed `docker save` archive, retained for 14 days. There is no registry publishing or deployment.
+
+The smoke test needs no `.env` file or repository credentials: it uses the image's JSON defaults and disables background scans. Startup and recreation use a bounded health probe that retries transient connection errors, including resets, and validates the completed response as exactly `{"status":"ok"}`. An unavailable container or an invalid health response still fails the job.
 
 | Run | Git tag and Docker image |
 | --- | --- |

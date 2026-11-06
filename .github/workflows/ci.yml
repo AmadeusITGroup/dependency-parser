@@ -99,8 +99,8 @@ jobs:
       revision: ${{ steps.version.outputs.revision }}
     env:
       IMAGE_NAME: dependency-parser
-      CONTAINER_NAME: dependency-parser-smoke-${{ github.run_id }}-${{ github.run_attempt }}
-      VOLUME_NAME: dependency-parser-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+      CONTAINER_NAME: dependency-parser-smoke-${{ github.event.local_ci_run_id || github.run_id }}-${{ github.run_attempt }}
+      VOLUME_NAME: dependency-parser-smoke-${{ github.event.local_ci_run_id || github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Check out tested revision
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -111,10 +111,25 @@ jobs:
         id: version
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
+          github-token: ${{ env.ACT == 'true' && 'local-act-no-github-access' || github.token }}
           script: |
             const { determineVersion } = require("./.github/scripts/ci-version.cjs");
+            let tags;
+            if (process.env.ACT === "true") {
+              const { execFileSync } = require("node:child_process");
+              const names = execFileSync("git", ["tag", "--list", "main.*"], { encoding: "utf8" })
+                .trim().split(/\r?\n/).filter(Boolean);
+              tags = names.map(name => ({
+                name,
+                commit: {
+                  sha: execFileSync("git", ["rev-parse", "--verify", `refs/tags/${name}^{}`],
+                    { encoding: "utf8" }).trim(),
+                },
+              }));
+              core.notice("Local act run: allocating an image version from local Git tags, without GitHub API access.");
+            }
             const { version, revision } = await determineVersion({
-              github, context, runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+              github, context, runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT), tags,
             });
             core.setOutput("version", version);
             core.setOutput("revision", revision);
@@ -139,6 +154,10 @@ jobs:
         run: |
           image="$IMAGE_NAME:$IMAGE_VERSION"
           base_url="http://127.0.0.1:3000"
+          network_options=(--publish 127.0.0.1:3000:3000)
+          if [[ "${ACT:-}" == true ]]; then
+            network_options=(--network "container:$(hostname)")
+          fi
           test "$(docker image inspect --format '{{.Config.User}}' "$image")" = "node"
           git_version=$(docker run --rm --entrypoint git "$image" --version)
           echo "$git_version"
@@ -151,13 +170,15 @@ jobs:
 
           start_container() {
             docker run --detach --name "$CONTAINER_NAME" \
-              --publish 127.0.0.1:3000:3000 \
+              "${network_options[@]}" \
               --mount "type=volume,source=$VOLUME_NAME,target=/app/backend/data" \
               --env DEPENDENCY_SCAN_ENABLED=false \
               "$image"
             curl --fail --silent --show-error --max-time 5 \
-              --retry 30 --retry-connrefused --retry-delay 2 --retry-max-time 60 \
-              "$base_url/api/health" | jq --exit-status '. == {"status":"ok"}'
+              --retry 30 --retry-all-errors --retry-delay 2 --retry-max-time 60 \
+              --output "$RUNNER_TEMP/health.json" \
+              "$base_url/api/health"
+            jq --exit-status '. == {"status":"ok"}' "$RUNNER_TEMP/health.json"
           }
 
           start_container
@@ -202,7 +223,12 @@ jobs:
           docker save "$IMAGE_NAME:$IMAGE_VERSION" "$IMAGE_NAME:sha-$IMAGE_REVISION" \
             | gzip > "dependency-parser-$IMAGE_VERSION.tar.gz"
 
+      - name: Explain local image artifact upload skip
+        if: env.ACT == 'true'
+        run: echo "::notice::Skipping GitHub image artifact upload in local act runs; image build, smoke tests, and compressed export are still enforced. The image remains in the selected container engine."
+
       - name: Upload image artifact
+        if: env.ACT != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: dependency-parser-${{ steps.version.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -221,7 +247,11 @@ jobs:
             echo
             echo "- Version: \`$IMAGE_NAME:$IMAGE_VERSION\`"
             echo "- Revision: \`$IMAGE_NAME:sha-$IMAGE_REVISION\`"
-            echo "- Download the image artifact, extract the archive, and load it with \`docker load --input dependency-parser-$IMAGE_VERSION.tar.gz\`."
+            if [[ "${ACT:-}" == true ]]; then
+              echo "- Local run: the image remains in the selected container engine; the compressed export was checked but is not retained after runner cleanup."
+            else
+              echo "- Download the image artifact, extract the archive, and load it with \`docker load --input dependency-parser-$IMAGE_VERSION.tar.gz\`."
+            fi
             echo "- No registry publishing or deployment was performed."
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -245,6 +275,7 @@ jobs:
           IMAGE_VERSION: ${{ needs.image.outputs.version }}
           IMAGE_REVISION: ${{ needs.image.outputs.revision }}
         with:
+          github-token: ${{ env.ACT == 'true' && 'local-act-no-github-access' || github.token }}
           script: |
             const version = process.env.IMAGE_VERSION;
             const revision = process.env.IMAGE_REVISION;
@@ -258,16 +289,23 @@ jobs:
               if (match[2] !== String(number)) {
                 throw new Error("The image version does not match this pull request.");
               }
+            } else if (match[2] !== undefined || match[1] === "0" ||
+              context.ref !== `refs/heads/${context.payload.repository.default_branch}`) {
+              throw new Error("Mainline build tags can only be created from the default branch.");
+            }
+
+            if (process.env.ACT === "true") {
+              core.notice(`Local act dry run: validated Git tag ${version} for ${revision}; no GitHub tag was created or modified.`);
+              return;
+            }
+            if (isPullRequest) {
               const { data: pullRequest } = await github.rest.pulls.get({
-                ...context.repo, pull_number: number,
+                ...context.repo, pull_number: context.payload.pull_request.number,
               });
               if (pullRequest.state !== "open" || pullRequest.merge_commit_sha !== revision) {
                 core.notice("The PR closed or its tested merge revision changed; leaving Git tags untouched.");
                 return;
               }
-            } else if (match[2] !== undefined || match[1] === "0" ||
-              context.ref !== `refs/heads/${context.payload.repository.default_branch}`) {
-              throw new Error("Mainline build tags can only be created from the default branch.");
             }
 
             const ref = `tags/${version}`;

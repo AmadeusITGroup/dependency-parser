@@ -77,13 +77,13 @@ async function pullRequestSequence({ github, context, runAttempt, tags }) {
   return sequence;
 }
 
-async function determineVersion({ github, context, runAttempt }) {
+async function determineVersion({ github, context, runAttempt, tags: suppliedTags }) {
   const isPullRequest = context.eventName === "pull_request";
   if (!isPullRequest &&
     context.ref !== `refs/heads/${context.payload.repository.default_branch}`) {
     throw new Error("Mainline build tags can only be allocated on the default branch.");
   }
-  const tags = await github.paginate(github.rest.repos.listTags, {
+  const tags = suppliedTags ?? await github.paginate(github.rest.repos.listTags, {
     ...context.repo, per_page: 100,
   });
   const mainline = tags.filter(tag => mainlinePattern.test(tag.name)).sort((left, right) => {
