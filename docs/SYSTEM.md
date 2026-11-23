@@ -289,11 +289,6 @@ End-user authentication and authorization are operator responsibilities. The tab
 | Metrics, tracing, alerting | Not implemented | Only `backend/src/utils/logger.ts` exists |
 | Registry publishing, Helm charts, and production deployment | Not implemented | See [Section 10](#10-deployment) |
 
-### Remaining Work
-
-- Package-manifest diffs are available through the API only; the browser compares trees and Git history.
-- The combined image is intended for testing. See [deployment gaps](#104-gaps-to-close-before-a-shared-or-production-deployment) for what operators must provide for shared or production use.
-
 ---
 
 ## 7. Entities and Core APIs

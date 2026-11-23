@@ -1,0 +1,95 @@
+name: 🐛 Bug Report
+description: Report a bug or unexpected behavior in Dependency Parser
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For security vulnerabilities, follow the [private reporting instructions](https://github.com/AmadeusITGroup/dependency-parser/blob/main/SECURITY.md#reporting-a-vulnerability) instead of opening a public issue.
+        Remove credentials, tokens, private repository URLs, and private data from anything you share.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of the bug
+      placeholder: What went wrong?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Include a public repository and Git tag or commit if possible, or the API endpoint and a sanitized request.
+      placeholder: |
+        1. Open Dependency Tree and select a project and release.
+        2. Expand the affected npm or Maven dependency.
+        3. Note where the error appears.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should have happened?
+      placeholder: Describe the expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: Describe what actually happened
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of Dependency Parser is affected?
+      options:
+        - Web UI (Dependency Tree, Find Root Version, Tree Builder)
+        - npm or Maven parsing and dependency resolution
+        - Git repository access, tags, or version comparisons
+        - API, storage, or background scans
+        - Installation, containers, or CI
+        - Documentation
+        - Other / not sure
+
+  - type: input
+    id: app-version
+    attributes:
+      label: Dependency Parser Version
+      description: Which Git tag, commit SHA, or container image tag are you running?
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Share relevant details such as your OS, browser, Node.js and Git versions for local runs, or Docker/Podman version.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: Paste relevant backend, container, or browser console errors. Redact sensitive information first.
+      render: text
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Share redacted screenshots, relevant configuration, or workarounds.
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I would like to work on a fix.

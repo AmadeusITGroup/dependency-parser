@@ -1,6 +1,10 @@
 # Contributing
 
-For project decisions, merge rules, and releases, see [Governance](GOVERNANCE.md). The current maintainers are listed in [MAINTAINERS.md](MAINTAINERS.md).
+Thank you for contributing to Dependency Parser. This guide explains how to propose a change, submit a pull request, and take part in the project.
+
+For installation, local development, and containers, see the [running guide](RUNNING.md). For a walkthrough of the application, see the [Express demo](DEMO.md). The [repository overview](README.md), [backend reference](backend/README.md), and [frontend reference](frontend/README.md) provide project and component details.
+
+For project decision-making, commit access, and release policy, see [Governance](GOVERNANCE.md). For the current maintainer list, see [Maintainers](MAINTAINERS.md).
 
 ## GitHub Contribution Rules
 
@@ -8,23 +12,9 @@ Security reports are an exception to the public issue-first workflow below. Do n
 
 1. **Fork the project** into your GitHub account.
 2. Check existing issues and pull requests to avoid duplicate work.
-3. **Open an issue in the original repository** before implementing a change. Copy this template into the issue description and select one type:
-
-   ```markdown
-   ### Type
-   Feature / Bug / Documentation
-
-   ### Description
-   Clearly describe the issue or proposed feature and why it matters.
-   For a bug, include reproduction steps, expected behavior, actual behavior,
-   and relevant versions or error messages.
-
-   ### Do you want to implement the feature or fix yourself?
-   Yes / No
-   ```
-
-4. If you answer **Yes**, create a branch in your fork and implement the change there. Keep the change focused, add or update relevant tests, and update affected documentation.
-5. **Open a pull request from your fork to the original repository's default/mainline branch, `main`**. Link the issue, describe the change, and include verification results. Do not target your fork as the destination.
+3. **Open an issue in the original repository** before implementing a change. In the [issue chooser](https://github.com/AmadeusITGroup/dependency-parser/issues/new/choose), select **Bug Report**, **Feature Request** (also for documentation improvements), or **Question** for help using the project. Indicate if you'd like to work on the fix or improvement.
+4. If you want to implement the change, create a branch in your fork and implement it there. Keep the change focused, add or update relevant tests, and update affected documentation.
+5. **Open a pull request from your fork to the original repository's default/mainline branch, `main`**. Fill in the pull request template with a summary, the related issue, and verification results. Do not target your fork as the destination.
 6. Address review feedback. A maintainer can merge after at least one maintainer approval and successful required CI checks, as defined in [governance](GOVERNANCE.md#commit-access). Never include tokens, credentials, private environment files, or local application data in issues, logs, commits, or pull requests.
 
 ## Verification And CI
@@ -51,10 +41,10 @@ Update the affected manifests and lockfiles together, verify the change, and fol
 backend/   TypeScript/Express API, configuration, datastore files, and tests
 frontend/  Angular application and tests
 docs/      Application usage and design documentation
-.github/   GitHub Actions CI, Copilot instructions, skills, and custom agents
+.github/   Issue and PR templates, GitHub Actions CI, and Copilot configuration
 ```
 
-For component boundaries and current gaps, see the [system reference](docs/SYSTEM.md) and [remaining work](docs/SYSTEM.md#remaining-work).
+For component boundaries and current limitations, see the [system reference](docs/SYSTEM.md).
 
 ## Copilot Workflows
 

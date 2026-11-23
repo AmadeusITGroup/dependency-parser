@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/AmadeusITGroup/dependency-parser#readme
+    about: Find setup instructions and usage guides for Dependency Parser

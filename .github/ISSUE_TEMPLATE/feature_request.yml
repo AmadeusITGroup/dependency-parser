@@ -1,0 +1,69 @@
+name: ✨ Feature Request
+description: Suggest an improvement to Dependency Parser or its documentation
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What are you trying to do, and what is missing or difficult today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: What should Dependency Parser let you do, or what should its documentation explain?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe other approaches or workarounds you have considered.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of Dependency Parser would this improve?
+      options:
+        - Web UI (Dependency Tree, Find Root Version, Tree Builder)
+        - npm or Maven parsing and dependency resolution
+        - Git repository access, tags, or version comparisons
+        - API, storage, or background scans
+        - Installation, containers, or CI
+        - Documentation
+        - Other / not sure
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority (from your perspective)
+      description: How important is this to your workflow?
+      options:
+        - Low - Nice to have
+        - Medium - Would improve my workflow
+        - High - Blocks a key part of my workflow
+        - Critical - I cannot use Dependency Parser without this
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Would you be willing to contribute to this feature?
+      options:
+        - label: I would like to implement this change
+        - label: I can help with testing
+        - label: I can help with documentation
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Share public examples, mockups, or other relevant context. Remove credentials and private data before posting.

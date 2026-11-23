@@ -51,4 +51,3 @@ For security vulnerabilities, follow the private reporting instructions in [SECU
 | [Backend reference](backend/README.md) | API contracts, npm/Maven parsing, persistence, scans, logging, configuration, and container runtime details. |
 | [Frontend reference](frontend/README.md) | Screen behavior, browser state, and Angular development commands. |
 | [System reference](docs/SYSTEM.md) | As-built architecture, API contracts, implementation choices, and deployment limitations. |
-| [Remaining work](docs/SYSTEM.md#remaining-work) | Current gaps and follow-up improvements. |

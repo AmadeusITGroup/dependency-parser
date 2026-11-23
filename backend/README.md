@@ -494,4 +494,4 @@ src/utils/            Console logging
 tests/                Node test runner regression tests
 ```
 
-See the [system reference](../docs/SYSTEM.md) for the as-built architecture and [remaining work](../docs/SYSTEM.md#remaining-work).
+See the [system reference](../docs/SYSTEM.md) for the as-built architecture and current limitations.
