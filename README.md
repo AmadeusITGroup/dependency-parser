@@ -28,7 +28,7 @@ Follow the [Express demo](DEMO.md) for a step-by-step walkthrough: define a proj
 
 Dependency Parser is an open-source, self-hosted tool. We provide basic build, run, and container tooling; operators own their environment, deployment pipeline, and persistence. See [deployment responsibilities](RUNNING.md#deployment-responsibilities).
 
-See the [running guide](RUNNING.md) for local Node.js setup, Docker and Podman commands, token input, verification, and versioned CI image artifacts.
+See the [running guide](RUNNING.md) for local Node.js setup, Docker and Podman commands, token input, startup checks, and loading CI images.
 
 For environment variables, follow the centralized [backend environment setup](backend/README.md#environment-setup), including local file creation, shell overrides, credentials, and the complete variable reference.
 
@@ -36,11 +36,11 @@ For environment variables, follow the centralized [backend environment setup](ba
 
 See the [contribution guide](CONTRIBUTING.md) for the issue-first workflow, issue template, fork and pull request instructions, and review expectations.
 
-Local verification and CI enforce independent backend and frontend [test coverage minimums](RUNNING.md#coverage-policy), with downloadable coverage reports in CI.
+Local verification and CI enforce independent backend and frontend [test coverage minimums](CONTRIBUTING.md#coverage-policy), with downloadable coverage reports in CI.
 
 See [GOVERNANCE.md](GOVERNANCE.md) for project decisions, commit access, merge requirements, and release management. The current project maintainers are listed in [MAINTAINERS.md](MAINTAINERS.md).
 
-Development targets the `main` branch. CI build tags use the `main.` prefix and identify tested snapshots; human maintainers choose official Semantic Versioning release tags. See the [build-tag conventions](RUNNING.md#versioned-git-tags-and-image-artifacts) and [release policy](GOVERNANCE.md#release-management).
+Development targets the `main` branch. See the [release policy](GOVERNANCE.md#release-management) for the distinction between CI build tags and official releases.
 
 For security vulnerabilities, follow the private reporting instructions in [SECURITY.md](SECURITY.md); do not open a public issue or pull request.
 
@@ -50,5 +50,5 @@ For security vulnerabilities, follow the private reporting instructions in [SECU
 | --- | --- |
 | [Backend reference](backend/README.md) | API contracts, npm/Maven parsing, persistence, scans, logging, configuration, and container runtime details. |
 | [Frontend reference](frontend/README.md) | Screen behavior, browser state, and Angular development commands. |
-| [High-level design](docs/HLD.md) | As-built architecture, component interactions, and deployment considerations. |
-| [Remaining work](docs/HLD.md#remaining-work) | Current gaps and follow-up improvements. |
+| [System reference](docs/SYSTEM.md) | As-built architecture, API contracts, implementation choices, and deployment limitations. |
+| [Remaining work](docs/SYSTEM.md#remaining-work) | Current gaps and follow-up improvements. |

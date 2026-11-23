@@ -18,9 +18,16 @@ Changes to the default/mainline branch, `main`, must go through pull requests wi
 
 Human maintainers decide when a verified mainline revision is ready and create an unused Semantic Versioning tag, `MAJOR.MINOR.PATCH`, such as `1.4.0`. MAJOR denotes breaking changes, MINOR backward-compatible features, and PATCH backward-compatible fixes.
 
-Automated `main.<N>` mainline tags and `main.<N>-pr<PR-number>.<build-sequence>` PR tags identify tested CI snapshots, not official releases. The per-PR build sequence advances for rebuilds and changed commits. See the [build-tag conventions](RUNNING.md#versioned-git-tags-and-image-artifacts) and [maintainer release procedure](CONTRIBUTING.md#maintainer-controlled-releases).
+Automated `main.<N>` mainline tags and `main.<N>-pr<PR-number>.<build-sequence>` PR tags identify tested CI snapshots, not official releases. See the [CI build-tag conventions](docs/SYSTEM.md#versioned-git-tags-and-image-artifacts).
 
 Published build and release tags must not be moved or repurposed. Merging a pull request does not create an official release, and CI does not choose semantic release versions.
+
+For example, to release the verified mainline revision tagged `main.12`:
+
+```shell
+git tag -a 1.4.0 main.12 -m "Release 1.4.0"
+git push origin 1.4.0
+```
 
 No tag-triggered release publishing workflow is currently configured. Maintainers manage release announcements and distribution separately. Official releases do not establish separately maintained security-fix lines; see [supported versions](SECURITY.md#supported-versions).
 

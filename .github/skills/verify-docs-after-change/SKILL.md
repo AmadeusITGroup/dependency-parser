@@ -1,6 +1,6 @@
 ---
 name: verify-docs-after-change
-description: 'Use when: finishing implementation or auditing documentation after changes to this dependency-parser project. Check documentation for TypeScript/Express API routes and DTOs, npm/Maven parsing, dependency resolution and version diffs, JSON/MongoDB persistence and caching, background scans and logging, environment/setup settings, Angular Dependency Tree or Tree Builder workflows, architecture, and Copilot customizations. Update the root, backend, and frontend READMEs and relevant existing docs, including docs/HLD.md, when setup, observable behavior, or design changes; internal-only changes still require a no-update decision.'
+description: 'Use when: finishing implementation or auditing documentation after changes to this dependency-parser project. Check documentation for TypeScript/Express API routes and DTOs, npm/Maven parsing, dependency resolution and version diffs, JSON/MongoDB persistence and caching, background scans and logging, environment/setup settings, Angular Dependency Tree or Tree Builder workflows, architecture, and Copilot customizations. Update the root, backend, and frontend READMEs and relevant existing docs, including docs/SYSTEM.md, when setup, observable behavior, or design changes; internal-only changes still require a no-update decision.'
 argument-hint: 'Describe the change or diff whose documentation should be checked'
 user-invocable: true
 disable-model-invocation: false
@@ -32,12 +32,12 @@ Keep this project's documentation consistent with implementation changes that af
 | Project definitions, JSON/MongoDB persistence, cached trees | `backend/README.md`: Configuration And Persistence, Tag History And Snapshots; relevant data models and storage descriptions in `docs/` |
 | Scan scheduling, failure handling, concurrency, shutdown, log levels | `backend/README.md`: Background Dependency Scans, Logging, Configuration And Persistence; relevant lifecycle and operations descriptions in `docs/` |
 | Angular commands, Dependency Tree, Tree Builder, routing, drafts, selection, comparison, import/export | `frontend/README.md`: Current screens, Development server, Building, Running unit tests, Available scripts; relevant frontend descriptions in `docs/` |
-| Architecture, component boundaries, service interactions, data models, deployment assumptions | Relevant existing `docs/` files, including `docs/HLD.md`; README overviews and layouts only when affected |
+| Architecture, component boundaries, service interactions, data models, deployment assumptions | Relevant existing `docs/` files, including `docs/SYSTEM.md`; README overviews and layouts only when affected |
 | Copilot skill discovery, triggers, approval workflow | Root `README.md` contributor guidance and `.github/copilot-instructions.md`; affected skills/agents |
 
 The root README owns the project overview and shared setup; `backend/README.md` owns backend commands, API contracts, configuration, and operations; `frontend/README.md` owns frontend commands and user workflows. Link to the owning document instead of duplicating component details across READMEs.
 
-Maintain relevant existing files in `docs/`, including the as-built high-level design in `docs/HLD.md`, when the described behavior or architecture changes. Check that the directory and files exist before searching them; do not create a documentation tree solely to satisfy this skill. Unrelated docs do not need edits. AI-DLC intent records are not a substitute for application documentation.
+Maintain relevant existing files in `docs/`, including the as-built system reference in `docs/SYSTEM.md`, when the described behavior or architecture changes. Check that the directory and files exist before searching them; do not create a documentation tree solely to satisfy this skill. Unrelated docs do not need edits. AI-DLC intent records are not a substitute for application documentation.
 
 ## Procedure
 
@@ -55,12 +55,12 @@ Maintain relevant existing files in `docs/`, including the as-built high-level d
 3. Decide whether documentation needs an update.
    - Update setup, configuration, API contracts, persistence/cache semantics, scheduling, user workflows, architecture, and operator expectations when they change.
    - Keep backend Current Capabilities, frontend Current screens, and root Remaining Work consistent with the change being delivered.
-   - An internal refactor may still change the HLD. Record a no-update decision only when the existing documentation, including relevant design descriptions, remains accurate.
+   - An internal refactor may still require updates to the system reference. Record a no-update decision only when the existing documentation, including relevant design descriptions, remains accurate.
 
 4. Patch the smallest relevant documentation.
    - Keep the root README focused on the overview, shared setup, remaining work, layout, and contributor guidance. Keep component-specific details in their owning README and maintain cross-links instead of duplicating them.
    - Keep backend API/configuration/operations and frontend screen/workflow descriptions aligned with the implementation.
-   - Update affected sections of relevant existing `docs/` files, including `docs/HLD.md`, for architecture, interactions, contracts, data models, or operational changes. Preserve the distinction between as-built behavior and planned design.
+   - Update affected sections of relevant existing `docs/` files, including `docs/SYSTEM.md`, for architecture, interactions, contracts, data models, or operational changes. Preserve the distinction between as-built behavior and planned design.
    - Update `backend/.env.example` when documented backend settings change, but never include real credentials or connection secrets.
    - Prefer existing documentation locations. Do not create a new documentation tree, rewrite unrelated sections, or edit generated AI-DLC records for an ordinary application change.
 
@@ -74,7 +74,7 @@ Maintain relevant existing files in `docs/`, including the as-built high-level d
 
 - Setup and configuration documentation still matches the changed code.
 - New or changed public routes, fields, supported ecosystems, persistence behavior, and UI workflows are documented where relevant.
-- Relevant existing design documentation in `docs/`, including the HLD, matches affected architecture, interactions, and data models.
+- Relevant existing design documentation in `docs/`, including the system reference, matches affected architecture, interactions, and data models.
 - Component details have one owning README, with working links from the root rather than duplicated instructions.
 - Existing limitations and remaining-work entries do not contradict the delivered change.
 - Documentation validation ran, or the final response explains what was not checked.

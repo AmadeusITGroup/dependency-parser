@@ -2,7 +2,7 @@
 
 The backend is a TypeScript and Express API for defining projects, resolving dependency trees, locating versions, and comparing package versions across releases.
 
-See the [running guide](../RUNNING.md#build-and-run-locally) for prerequisites, dependency installation, and running both applications. Complete the [environment setup](#environment-setup) before starting the API. Run the commands below from `backend/`; the server loads `.env` and resolves datastore paths relative to the current working directory.
+See the [running guide](../RUNNING.md#build-and-run-locally) for installation and startup. Run the backend build and test commands below from `backend/`. The server loads `.env` and resolves relative data paths from its working directory.
 
 ## Current Capabilities
 
@@ -23,21 +23,7 @@ See the [running guide](../RUNNING.md#build-and-run-locally) for prerequisites, 
 
 ## Development Server
 
-After configuring a persistent datastore in the [environment setup](#environment-setup), run the development script from `backend/` to start the API with automatic restart:
-
-```powershell
-npm run dev
-```
-
-The API listens on `http://localhost:3000` by default, with routes under `/api`. Leave it running while starting the frontend in a separate terminal.
-
-For a different port, configure `PORT` using the [environment setup](#environment-setup) and update the frontend development proxy to match.
-
-Example health check:
-
-```powershell
-Invoke-RestMethod http://localhost:3000/api/health
-```
+For development and compiled startup commands, see [Run Components Separately](../RUNNING.md#run-components-separately-optional). The API defaults to `http://localhost:3000` with routes under `/api`. If you change `PORT` in the [environment setup](#environment-setup), update the frontend development proxy to match.
 
 ## Building
 
@@ -46,14 +32,6 @@ Compile TypeScript and coverage source maps into `dist/`:
 ```powershell
 npm run build
 ```
-
-Run the compiled API from `backend/` with the same environment settings as the development server:
-
-```powershell
-npm start
-```
-
-This starts only the compiled backend, without watching for source changes. The repository-root `npm start` instead starts both applications in development mode.
 
 ## Linting And Verification
 
@@ -72,7 +50,7 @@ Run lint, compile the backend, and execute its tests in order:
 npm run verify
 ```
 
-For checks covering both applications and the GitHub Actions workflow, see [repository verification](../RUNNING.md#verification-and-ci).
+For checks covering both applications and the GitHub Actions workflow, see [repository verification](../CONTRIBUTING.md#verification-and-ci).
 
 ## Running Tests
 
@@ -95,7 +73,7 @@ Commit-comparison regressions cover committer timestamps independently of author
 
 ### Test Coverage
 
-Build fresh compiled output, run the ordinary test suite, and enforce the shared [coverage policy](../RUNNING.md#coverage-policy):
+Build fresh compiled output, run the ordinary test suite, and enforce the shared [coverage policy](../CONTRIBUTING.md#coverage-policy):
 
 ```powershell
 npm run test:coverage
@@ -132,11 +110,9 @@ Compile first. The test requires existing Git access to the repositories; it dis
 
 | Command | Description |
 | --- | --- |
-| `npm run dev` | Run the TypeScript API with automatic restart. |
 | `npm run build` | Compile TypeScript into `dist/`. |
 | `npm run lint` | Check backend source and tests; requires root development dependencies. |
 | `npm run lint:fix` | Apply automatically fixable backend lint corrections. |
-| `npm start` | Run the compiled API from `dist/`. |
 | `npm test` | Run backend tests; compile first. Real-MongoDB checks require `MONGODB_TEST_URI`. |
 | `npm run test:coverage` | Compile, run backend tests with c8, and enforce the shared coverage minimums. |
 | `npm run verify` | Run lint, compile, and run backend tests with coverage enforcement. |
@@ -165,7 +141,7 @@ Settings are read from the backend process environment and, for local Node.js st
    - Keep `DATASTORE=json` for local persistence without MongoDB. For MongoDB, set `DATASTORE=mongodb` and configure `MONGODB_URI`; see [MongoDB](#mongodb).
    - Remove or comment out the template's `GITHUB_TOKEN=<token>` line, or leave `GITHUB_TOKEN` blank, unless supplying a real read-only token. Public repositories do not require a token; private GitHub repositories can use [GitHub token authentication](#github-token-authentication).
    - Adjust optional settings using the [variable reference](#environment-variables) below. MongoDB settings are ignored when using JSON persistence.
-3. Run `npm start` from the repository root to start both applications, or follow [Development Server](#development-server) to start only the backend from `backend/`.
+3. Follow the [startup instructions](../RUNNING.md#start-both-applications).
 
 The root launcher starts the backend with `backend/` as its working directory, so it reads `backend/.env`, **not a repository-root `.env`**. The Angular frontend does not need its own `.env` file. If you change `PORT`, also update the target in [frontend/proxy.conf.json](../frontend/proxy.conf.json) and restart the frontend development server.
 
@@ -175,22 +151,21 @@ For containers, pass settings at runtime through `--env` or a dedicated `--env-f
 
 ### Shell Overrides
 
-A local environment file is optional if you supply settings through the process environment. For example, from the repository root:
+A local environment file is optional if you supply settings through the process environment. Set the variables in the terminal before following the [startup instructions](../RUNNING.md#start-both-applications).
 
 **PowerShell:**
 
 ```powershell
 $env:DATASTORE = "json"
-npm start
 ```
 
 **Bash:**
 
 ```bash
-DATASTORE=json npm start
+export DATASTORE=json
 ```
 
-The PowerShell assignment remains set in that terminal and overrides `backend/.env` until removed with `Remove-Item Env:\DATASTORE` or the terminal is closed. The Bash inline assignment applies only to that command. CI can supply the same variables through its environment and secret configuration.
+These settings override `backend/.env` in the current terminal until the terminal closes or the variable is removed (`Remove-Item Env:\DATASTORE` in PowerShell, `unset DATASTORE` in Bash).
 
 ### Environment Variables
 
@@ -221,7 +196,7 @@ All build and runtime stages use `node:24-trixie-slim` (Node.js 24 on Debian Tri
 
 Mount `/app/backend/data` to retain project definitions, tag catalogs, dependency snapshots, and the default clone cache. A new volume starts empty. Existing bind-mounted directories must be writable by UID 1000. Local datastore files, clones, environment files, and npm credentials are excluded by the allowlisted [build context](../.dockerignore); no development data or credentials are bundled.
 
-Pass backend settings and repository credentials at runtime using `--env` or a dedicated environment file, never build arguments or image contents. MongoDB remains optional through the existing runtime settings; a MongoDB server is not included. The image health check verifies `/api/health`, not external Git or MongoDB availability. This is local test packaging; operators must address [deployment responsibilities](../RUNNING.md#deployment-responsibilities) and the [shared/production deployment gaps](../docs/HLD.md#104-gaps-to-close-before-a-shared-or-production-deployment).
+Pass backend settings and repository credentials at runtime using `--env` or a dedicated environment file, never build arguments or image contents. MongoDB remains optional through the existing runtime settings; a MongoDB server is not included. The image health check verifies `/api/health`, not external Git or MongoDB availability. This is local test packaging; operators must address [deployment responsibilities](../RUNNING.md#deployment-responsibilities) and the [shared/production deployment gaps](../docs/SYSTEM.md#104-gaps-to-close-before-a-shared-or-production-deployment).
 
 ### GitHub Token Authentication
 
@@ -255,10 +230,9 @@ Start a MongoDB server locally or use an existing deployment, then configure the
 $env:DATASTORE = "mongodb"
 $env:MONGODB_URI = "mongodb://localhost:27017"
 $env:MONGODB_DATABASE = "dependency_parser"
-npm run dev
 ```
 
-The same settings work with `npm start` after `npm run build`. Keep credentials in environment variables or the uncommitted `.env` file.
+Then follow the [startup instructions](../RUNNING.md#start-both-applications). Keep credentials in environment variables or the uncommitted `.env` file.
 
 MongoDB stores project definitions in `projects`, tag metadata in `tags` (unique project ID and tag name), and resolved snapshots in `dependencyTrees` (unique project ID, version, and commit hash). Regular-expression version references are preserved. Existing JSON files are not automatically imported.
 
@@ -520,4 +494,4 @@ src/utils/            Console logging
 tests/                Node test runner regression tests
 ```
 
-See the [high-level design](../docs/HLD.md) for the as-built architecture and [remaining work](../docs/HLD.md#remaining-work).
+See the [system reference](../docs/SYSTEM.md) for the as-built architecture and [remaining work](../docs/SYSTEM.md#remaining-work).

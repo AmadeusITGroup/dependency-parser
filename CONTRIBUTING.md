@@ -1,10 +1,6 @@
 # Contributing
 
-Thank you for contributing to Dependency Parser. This guide explains how to propose a change, submit a pull request, and take part in the project.
-
-For installation, local development, containers, and detailed verification commands, see the [running guide](RUNNING.md). For a walkthrough of the application, see the [Express demo](DEMO.md). The [repository overview](README.md), [backend reference](backend/README.md), and [frontend reference](frontend/README.md) provide project and component details.
-
-For project decision-making, commit access, and release policy, see [Governance](GOVERNANCE.md). For the current maintainer list, see [Maintainers](MAINTAINERS.md).
+For project decisions, merge rules, and releases, see [Governance](GOVERNANCE.md). The current maintainers are listed in [MAINTAINERS.md](MAINTAINERS.md).
 
 ## GitHub Contribution Rules
 
@@ -33,30 +29,21 @@ Security reports are an exception to the public issue-first workflow below. Do n
 
 ## Verification And CI
 
-Before submitting code, complete the [local setup](RUNNING.md#build-and-run-locally) and [frontend Chromium setup](frontend/README.md#running-unit-tests), then run from the repository root:
+Before submitting code, start and try the app using the [local Node.js setup in RUNNING.md](RUNNING.md#build-and-run-locally). Stop the app, [set up Chromium for tests](frontend/README.md#running-unit-tests), then run this from the repository root:
 
 ```shell
 npm run verify
 ```
 
-This runs lint, CI workflow tests, both production builds, and both application test suites with coverage checks. See the [verification guide](RUNNING.md#verification-and-ci) for individual commands, local CI, coverage minimums, and CI artifacts.
+This lints, builds, and tests both applications and runs the CI workflow tests. Those tests need `curl`, Git, and Bash (Git Bash on Windows). Documentation-only changes do not require application builds or tests. For optional local CI and workflow details, see the [CI reference](docs/SYSTEM.md#105-continuous-integration).
 
-Add focused tests for the behavior you change and follow the [coverage policy](RUNNING.md#coverage-policy). When changing dependencies, follow the [dependency maintenance guidance](RUNNING.md#maintaining-dependencies), including manifest and lockfile updates.
+### Coverage Policy
 
-Documentation-only changes do not require application builds or tests.
+Verification enforces separate backend and frontend minimums: 80% coverage each for statements, lines, functions, and branches. Add focused tests for the behavior you change. CI uploads coverage reports to the workflow run.
 
-## Maintainer-Controlled Releases
+## Maintaining Dependencies
 
-Release authority, Semantic Versioning, and tag immutability are defined in [governance](GOVERNANCE.md#release-management). This section describes the maintainer procedure.
-
-The semantic tag is separate from the [CI build tag](RUNNING.md#versioned-git-tags-and-image-artifacts) and can point to the same tested commit. For example, a maintainer can release the revision already identified by `main.12`:
-
-```shell
-git tag -a 1.4.0 main.12 -m "Release 1.4.0"
-git push origin 1.4.0
-```
-
-Creating this tag does not currently trigger a release pipeline, publish an image/package, or create a GitHub Release. Manage announcements and distribution separately, and configure repository permissions and tag rulesets according to the [governance enforcement requirements](GOVERNANCE.md#enforcement).
+Update the affected manifests and lockfiles together, verify the change, and follow the [dependency audit and install-script guidance](SECURITY.md#dependency-maintenance).
 
 ## Project Layout
 
@@ -67,13 +54,8 @@ docs/      Application usage and design documentation
 .github/   GitHub Actions CI, Copilot instructions, skills, and custom agents
 ```
 
-For component boundaries and current gaps, see the [high-level design](docs/HLD.md) and [remaining work](docs/HLD.md#remaining-work).
+For component boundaries and current gaps, see the [system reference](docs/SYSTEM.md) and [remaining work](docs/SYSTEM.md#remaining-work).
 
 ## Copilot Workflows
 
-The shared routing in [.github/copilot-instructions.md](.github/copilot-instructions.md) applies to the default Copilot agent and both repository custom agents:
-
-- [Planner](.github/skills/planner/SKILL.md) proposes the main steps for new features, complex or ambiguous fixes, and nontrivial changes, then waits for approval before implementation. Trivial, unambiguous local edits do not require this gate; a plan-only request does not authorize implementation.
-- [Verify Docs After Change](.github/skills/verify-docs-after-change/SKILL.md) checks documentation before completing implementation. It updates the relevant root, backend, or frontend README and affected existing files in `docs/`, including the high-level design, or reports why no documentation update is needed.
-
-Copilot selects these skills using their descriptions and the routing instructions. They can also be invoked explicitly as `/planner` and `/verify-docs-after-change`. Application build/test/serve commands remain subject to the active agent's validation rules.
+For planning approval, documentation checks, and validation rules, see the [Copilot instructions](.github/copilot-instructions.md).

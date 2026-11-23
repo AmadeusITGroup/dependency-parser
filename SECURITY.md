@@ -44,15 +44,21 @@ Please allow the maintainers to investigate and coordinate a fix before public d
 
 ## Security practices
 
-- Keep npm dependencies, Node.js, Git, container base images and GitHub Actions updated. Follow the [dependency maintenance guidance](RUNNING.md#maintaining-dependencies), including lockfile updates and audits of all three npm packages.
+- Keep npm dependencies, Node.js, Git, container base images and GitHub Actions updated. Follow the [dependency maintenance guidance](#dependency-maintenance).
 - Do not commit secrets, private data, confidential repository contents or internal documents. Keep `.env`, `.env.*`, local datastore and clone-cache directories, and temporary files out of public commits and build artifacts. Sanitized `.env.example` templates may be committed.
 - Inject credentials at runtime, keep repository tokens backend-only and minimally scoped, and never put them in frontend code, repository URLs or container images.
 - Review handling of repository URLs, Git refs, regular expressions, npm/Maven manifests and imported project JSON, as well as frontend rendering of repository-derived data.
 - Require review for changes to GitHub Actions workflows, the Dockerfile, npm manifests and lockfiles, backend Git and credential handling, API input validation, and frontend rendering.
-- Keep published build and release tags immutable. Reserve semantic release-tag creation for maintainers through repository permissions and tag rulesets; the CI workflow creates only `main.*` build tags. See the [build-tag policy](RUNNING.md#versioned-git-tags-and-image-artifacts).
+- Keep published build and release tags immutable. Reserve semantic release-tag creation for maintainers through repository permissions and tag rulesets; the CI workflow creates only `main.*` build tags. See the [build-tag policy](docs/SYSTEM.md#versioned-git-tags-and-image-artifacts).
 
 Build/test jobs have read-only repository contents access. Only the isolated tag-only job has `contents: write`, and it never checks out or executes project code. Fork PRs receive image artifacts but cannot write Git tags. A passing build or an official release tag is not a security certification.
 
 The API currently has no user authentication or authorization. Optional `GITHUB_TOKEN` authentication grants the backend access to GitHub repositories; it does not protect the API or sign users in. Do not expose an unprotected instance to untrusted networks.
 
-Operators must secure network access, TLS, persistent JSON files or MongoDB, and cloned repository data. See [deployment responsibilities](RUNNING.md#deployment-responsibilities) and the [shared/production deployment gaps](docs/HLD.md#104-gaps-to-close-before-a-shared-or-production-deployment).
+Operators must secure network access, TLS, persistent JSON files or MongoDB, and cloned repository data. See [deployment responsibilities](RUNNING.md#deployment-responsibilities) and the [shared/production deployment gaps](docs/SYSTEM.md#104-gaps-to-close-before-a-shared-or-production-deployment).
+
+### Dependency maintenance
+
+Audit all three packages: `npm audit`, `npm --prefix backend audit`, and `npm --prefix frontend audit`. Review fixes rather than running `npm audit fix --force`. When upstream fixes make an override unnecessary, remove it and rerun verification and audits. Keep committed lockfile URLs on the public npm registry.
+
+Keep optional dependencies enabled. Approve install scripts only for reviewed package versions, and review them again when upgrading. Do not blanket-approve scripts.

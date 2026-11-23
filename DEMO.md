@@ -6,7 +6,7 @@ You will configure a project tree, inspect a release, compare two releases, view
 
 ## Before You Start
 
-- Start Dependency Parser using the [local setup instructions](RUNNING.md#start-both-applications), then open `http://localhost:4200`. If you use the [test container](RUNNING.md#build-and-run-in-a-container), open `http://localhost:3000` instead.
+- Start Dependency Parser using the [local setup instructions](RUNNING.md#build-and-run-locally), then open `http://localhost:4200`. If you use the [test container](RUNNING.md#build-and-run-in-a-container), open `http://localhost:3000` instead.
 - The backend needs Git and network access to the three public repositories below. No GitHub token is needed for this public example.
 - You do **not** need to install Express or create sample repositories. The tool reads Git tags and manifests, not installed npm packages.
 

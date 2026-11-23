@@ -17,7 +17,7 @@
 
 - After implementation and before the final response, load [skills/verify-docs-after-change/SKILL.md](skills/verify-docs-after-change/SKILL.md). Also load it for an explicit documentation audit.
 - Evaluate documentation impact even for internal-only fixes/refactors; update docs only when setup, observable behavior, architecture, contracts, workflows, or operations change.
-- Use the root `README.md` for the overview and shared setup, `backend/README.md` for backend details, and `frontend/README.md` for frontend details. Maintain relevant existing `docs/` files, including `docs/HLD.md`, when their described behavior or architecture changes. Link to owning documents instead of duplicating details; search `docs/` only if it exists and do not create a documentation tree just to complete this check.
+- Use the root `README.md` for the overview and shared setup, `backend/README.md` for backend details, and `frontend/README.md` for frontend details. Maintain relevant existing `docs/` files, including `docs/SYSTEM.md`, when their described behavior or architecture changes. Link to owning documents instead of duplicating details; search `docs/` only if it exists and do not create a documentation tree just to complete this check.
 - State which documentation was updated, or why no documentation change was needed, in the final response.
 
 ### Agent Boundaries

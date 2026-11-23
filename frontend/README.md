@@ -1,6 +1,6 @@
 # Frontend
 
-The frontend uses Angular 22.2.4 with Angular CLI and the `@angular/build` application builder on 22.2.5. TypeScript remains on the Angular-compatible 6.0 line. See the [development prerequisites](../RUNNING.md#prerequisites) for supported Node.js versions and [dependency maintenance](../RUNNING.md#maintaining-dependencies) for security overrides and install-script policy.
+The frontend uses Angular 22.2.4 with Angular CLI and the `@angular/build` application builder on 22.2.5. TypeScript remains on the Angular-compatible 6.0 line. See the [development prerequisites](../RUNNING.md#prerequisites) for supported Node.js versions and [dependency maintenance](../SECURITY.md#dependency-maintenance) for security overrides and install-script policy.
 
 For a basic workflow with Tree Builder form examples, tree comparisons, root-version searches, and screenshots, see the [Express demo](../DEMO.md).
 
@@ -60,15 +60,7 @@ The API uses Git history rather than version-number ordering, so either comparis
 
 ## Development server
 
-Run the commands below from `frontend/`. Start the backend first in a separate terminal, and [build the frontend](#building) before starting its development server:
-
-```bash
-npm start
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-The backend must be running for proxied API requests to succeed. Restart the frontend development server after editing the proxy configuration.
+See [RUNNING.md](../RUNNING.md#build-and-run-locally) for startup commands. The frontend reloads after source changes and needs the backend for API requests. Restart the development server after editing the proxy configuration.
 
 ## Code scaffolding
 
@@ -109,7 +101,7 @@ npm run lint:fix
 
 Warnings fail the check. The fix command applies supported automatic corrections and reports anything that still needs a manual fix.
 
-After provisioning Chromium as described below, `npm run verify` runs lint, a production build, and one non-watching test pass with coverage enforcement. See [repository verification](../RUNNING.md#verification-and-ci) for checks covering both applications and CI.
+After provisioning Chromium as described below, `npm run verify` runs lint, a production build, and one non-watching test pass with coverage enforcement. See [repository verification](../CONTRIBUTING.md#verification-and-ci) for checks covering both applications and CI.
 
 ## Running unit tests
 
@@ -133,7 +125,7 @@ Tests cover navigation, Dependency Tree, commit changelogs (compact action styli
 
 ### Test Coverage
 
-Collect coverage and enforce the shared [coverage policy](../RUNNING.md#coverage-policy):
+Collect coverage and enforce the shared [coverage policy](../CONTRIBUTING.md#coverage-policy):
 
 ```bash
 npm run test:coverage
@@ -145,7 +137,6 @@ npm run test:coverage
 
 | Command | Description |
 | --- | --- |
-| `npm start` | Run the Angular development server. |
 | `npm run build` | Create a production build. |
 | `npm run lint` | Check frontend TypeScript, Angular templates, and Vitest configuration; requires root development dependencies. |
 | `npm run lint:fix` | Apply automatically fixable frontend lint corrections. |
